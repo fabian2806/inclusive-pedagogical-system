@@ -1,7 +1,229 @@
+import { Link } from "react-router-dom"
+import { Eye, EyeOff, ArrowLeft, GraduationCap, Users, ClipboardCheck } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
+import { useState } from "react"
+
 export default function Login() {
+
+    {/* TODO: Exportar year a un componente (quizá a utils?) */}
+    const year = new Date().getFullYear();
+
+    const [showPassword, setShowPassword] = useState(false)
+    const [email, setEmail] = useState("")
+    const [password, setPassword] = useState("")
+
+    const features = [
+        "Expediente digital del estudiante",
+        "Comunicación en tiempo real",
+        "Coordinación de eventos",
+    ];
+    
+    {/* Reemplazar íconos por SVG? RNF*/}
+    const roles = [
+        { label: "Docente", icon: <GraduationCap /> },
+        { label: "SAANEE", icon: <ClipboardCheck /> },
+        { label: "Familia", icon: <Users /> },
+    ];
+
+    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault()
+        console.log("El email y password son:", { email, password })
+    }
+
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-100">
-            <h1 className="text-3xl font-bold text-gray-800">Página de Login</h1>
+        <div className="min-h-screen bg-[#F3F4F6] flex">
+            <title>Iniciar sesión</title>
+
+            {/* En el lado izquierdo: logo y breve texto descriptivo del sistema */}
+            <div className="hidden lg:flex lg:w-1/2 bg-[#1E3A5F] relative overflow-hidden">
+                <div className="absolute inset-0 bg-linear-to-br from-[#1E3A5F] via-[#2D4A6F] to-[#1E3A5F]" />
+                <div className="relative z-10 flex flex-col justify-between p-12 w-full">
+
+                    {/*TODO: Exportar logo a un único componente */}
+                    <Link to="/" className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 
+                                19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 
+                                7A3.37 3.37 0 0 0 9 18.13V22" />
+                            </svg>
+                        </div>
+                        <span className="text-xl font-bold text-white">SignaEdu</span>
+                    </Link>
+
+                    {/* Texto descriptivo */}
+                    <div className="flex-1 flex flex-col justify-center max-w-lg">
+                        <h1 className="text-5xl font-bold text-white leading-tight mb-4">
+                            Seguimiento pedagógico inclusivo
+                        </h1>
+                        <p className="text-lg text-white/70 leading-relaxed">
+                            Conectamos a docentes, familias y especialistas SAANEE para garantizar el desarrollo integral de estudiantes con discapacidad auditiva.
+                        </p>
+
+                        <div className="mt-10 space-y-4">
+                            {features.map((feature) => (
+                                <div key={feature} className="flex items-center gap-3">
+                                    <div className="w-6 h-6 rounded-full bg-[#3B82F6] flex items-center justify-center shrink-0">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                            <polyline points="20 6 9 17 4 12" />
+                                        </svg>
+                                    </div>
+                                    <span className="text-white/90 text-md">{feature}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Footer */}
+                    <p className="text-sm text-white/50">
+                        © {year} SignaEdu
+                    </p>
+                </div>
+
+                {/* Círculos decorativos (para que no sea tan estático el fondo) */}
+                <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-[#3B82F6]/10" />
+                <div className="absolute -top-20 -right-20 w-64 h-64 rounded-full bg-[#8B5CF6]/10" />
+            </div>
+
+            {/* En el lado derecho: Forms de login */}
+            <div className="flex-1 flex flex-col justify-center px-6 py-12 lg:px-16">
+                <div className="w-full max-w-md mx-auto">
+                    {/* Botón de retroceso para móvil */}
+                    <Link
+                        to="/"
+                        className="inline-flex items-center gap-2 text-sm text-[#6B7280] hover:text-[#1E3A5F] mb-8 transition-colors lg:hidden"
+                    >
+                        <ArrowLeft size={16} />
+                        Volver al inicio
+                    </Link>
+
+                    {/* Logo en móvil */}
+                    <div className="lg:hidden mb-8">
+                        <Link to="/" className="flex items-center gap-2.5">
+                            <div className="w-9 h-9 rounded-full bg-[#1E3A5F] flex items-center justify-center">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 
+                                    19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 
+                                    7A3.37 3.37 0 0 0 9 18.13V22" />
+                                </svg>
+                            </div>
+                            <span className="text-lg font-bold text-[#1E3A5F]">SignaEdu</span>
+                        </Link>
+                    </div>
+
+                    {/* Encabezado */}
+                    <div className="mb-8">
+                        <h2 className="text-2xl font-bold text-[#1E3A5F] mb-2">
+                            Iniciar sesión
+                        </h2>
+                        <p className="text-sm text-[#6B7280]">
+                            Ingresa tus credenciales para acceder a la plataforma
+                        </p>
+                    </div>
+
+                    {/* Formulario */}
+                    <form onSubmit={handleSubmit} className="space-y-5">
+
+                        {/* Correo */}
+                        <div className="space-y-2">
+                            <Label htmlFor="email" className="text-sm font-medium text-[#374151]">
+                                Correo electrónico
+                            </Label>
+                            <Input
+                                id="email"
+                                type="email"
+                                placeholder="usuario@ejemplo.com"
+                                value={email}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
+                                className="h-11 border-[#D1D5DB] focus:border-[#3B82F6] focus:ring-[#3B82F6]"
+                                required
+                            />
+                        </div>
+
+                        {/* Contraseña */}
+                        <div className="space-y-2">
+                            <Label htmlFor="password" className="text-sm font-medium text-[#374151]">
+                                Contraseña
+                            </Label>
+                            <div className="relative">
+                                <Input
+                                    id="password"
+                                    type={showPassword ? "text" : "password"}
+                                    placeholder="Ingresa tu contraseña"
+                                    value={password}
+                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
+                                    className="h-11 pr-10 border-[#D1D5DB] focus:border-[#3B82F6] focus:ring-[#3B82F6]"
+                                    required
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[#6B7280] transition-colors"
+                                    aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                                >
+                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <Checkbox id="remember" className="border-[#D1D5DB]" />
+                                <Label htmlFor="remember" className="text-sm text-[#6B7280] font-normal cursor-pointer">
+                                    Recordarme
+                                </Label>
+                            </div>
+                            <Link to="#" className="text-sm text-[#3B82F6] hover:text-[#2563EB] font-medium transition-colors">
+                                ¿Olvidaste tu contraseña?
+                            </Link>
+                        </div>
+
+                        <Button
+                            type="submit"
+                            className="w-full h-11 bg-[#1E3A5F] hover:bg-[#2D4A6F] text-white font-medium transition-colors"
+                        >
+                            Iniciar sesión
+                        </Button>
+                    </form>
+
+                    {/* Divisor informativo de accesos permitidos por rol */}
+                    <div className="relative my-8">
+                        <div className="absolute inset-0 flex items-center">
+                            <div className="w-full border-t border-[#E5E7EB]" />
+                        </div>
+                        <div className="relative flex justify-center text-xs">
+                            <span className="bg-[#F3F4F6] px-3 text-[#9CA3AF]">Acceso por rol</span>
+                        </div>
+                    </div>
+
+                    {/* Botones por rol (quizá agregar SVG? y considerar extraer a componente) */}
+                    <div className="grid grid-cols-3 gap-3">
+                        {roles.map((role) => (
+                            <div
+                                key={role.label}
+                                className="flex flex-col items-center gap-2 p-4 rounded-xl border border-[#E5E7EB] bg-white 
+                                hover:border-[#3B82F6] hover:bg-[#EFF6FF] transition-colors group"
+                            >
+                                {role.icon}
+                                <span className="text-xs font-medium text-[#6B7280] group-hover:text-[#1E3A5F] transition-colors">
+                                    {role.label}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Texto de apoyo (quizá solo considerar mensaje de contactar al admin. A evaluar) */}
+                    <p className="mt-8 text-center text-sm text-[#9CA3AF]">
+                        ¿Necesitas ayuda?{" "}
+                        <Link to="#" className="text-[#3B82F6] hover:text-[#2563EB] font-medium transition-colors">
+                            Contacta al administrador
+                        </Link>
+                    </p>
+                </div>
+            </div>
         </div>
     )
 }
