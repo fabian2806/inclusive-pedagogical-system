@@ -1,19 +1,24 @@
-import { Link } from "react-router-dom"
-import { Eye, EyeOff, ArrowLeft, GraduationCap, Users, ClipboardCheck } from "lucide-react"
+import { Link, useNavigate } from "react-router-dom"
+import { Eye, EyeOff, ArrowLeft, GraduationCap, Users, ClipboardCheck, Shield } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useState } from "react"
+import { useAuth } from "@/hooks/useAuth"
 
 export default function Login() {
 
     {/* TODO: Exportar year a un componente (quizá a utils?) */}
     const year = new Date().getFullYear();
+    const navigate = useNavigate()
+    const { login } = useAuth()
 
     const [showPassword, setShowPassword] = useState(false)
     const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")
+    const [error, setError] = useState("")
+    const [loading, setLoading] = useState(false)
 
     const features = [
         "Expediente digital del estudiante",
@@ -28,8 +33,20 @@ export default function Login() {
         { label: "Familia", icon: <Users /> },
     ];
 
-    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
+        setError("")
+        setLoading(true)
+
+        try {
+            await login(email, password)
+            navigate("/dashboard")
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Error al iniciar sesión")
+        } finally {
+            setLoading(false)
+        }   
+
         console.log("El email y password son:", { email, password })
     }
 
@@ -124,6 +141,12 @@ export default function Login() {
                         </p>
                     </div>
 
+                    {error && (
+                        <div className="mb-5 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+                            {error}
+                        </div>
+                    )}
+
                     {/* Formulario */}
                     <form onSubmit={handleSubmit} className="space-y-5">
 
@@ -183,9 +206,10 @@ export default function Login() {
 
                         <Button
                             type="submit"
-                            className="w-full h-11 bg-[#1E3A5F] hover:bg-[#2D4A6F] text-white font-medium transition-colors"
+                            className="w-full h-11 bg-[#1E3A5F] hover:bg-[#2D4A6F] text-white font-medium transition-colors disabled:opacity-50"
+                            disabled={loading}
                         >
-                            Iniciar sesión
+                            {loading ? "Iniciando..." : "Iniciar sesión"}
                         </Button>
                     </form>
 
