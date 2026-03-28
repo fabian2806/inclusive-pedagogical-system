@@ -10,7 +10,6 @@ export default function DashboardLayout() {
             <SidebarInset>
                 <DashboardTopbar />
                 <main className="flex-1 overflow-auto bg-[#F9FAFB]">
-                    <p>Hola</p>
                     <Outlet />
                 </main>
             </SidebarInset>

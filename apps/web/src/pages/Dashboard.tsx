@@ -1,5 +1,12 @@
+import AdminDashboard from "@/components/dashboard/AdminDashboard"
+import ParentDashboard from "@/components/dashboard/ParentDashboard"
+import SaaneeDashboard from "@/components/dashboard/SaaneeDashboard"
+import TeacherDashboard from "@/components/dashboard/TeacherDashboard"
 import { useAuth } from "@/hooks/useAuth"
 
+
+{/*Para el dashboard, considerando las diferencias marcadas entre roles para esta sección (cada uno 
+  espera ver información diferente), definimos 4 componentes diferentes para cada vista por rol*/}
 export default function Dashboard() {
   const { user } = useAuth()
 
@@ -7,35 +14,19 @@ export default function Dashboard() {
     switch (user?.rol) {
       case 'docente':
         return (
-          <div>
-            <h2 className="text-2xl font-bold text-[#1E3A5F] mb-4">
-              Panel del Docente
-            </h2>
-          </div>
+          <TeacherDashboard />
         )
       case 'padre':
         return (
-          <div>
-            <h2 className="text-2xl font-bold text-[#1E3A5F] mb-4">
-              Panel de Familia
-            </h2>
-          </div>
+          <ParentDashboard />
         )
       case 'saanee':
         return (
-          <div>
-            <h2 className="text-2xl font-bold text-[#1E3A5F] mb-4">
-              Panel SAANEE
-            </h2>
-          </div>
+          <SaaneeDashboard />
         )
       case 'admin':
         return (
-          <div>
-            <h2 className="text-2xl font-bold text-[#1E3A5F] mb-4">
-              Panel Administrador
-            </h2>
-          </div>
+          <AdminDashboard />
         )
       default:
         return null
