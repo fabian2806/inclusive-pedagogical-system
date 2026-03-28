@@ -11,10 +11,10 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 const menuConfig: Record<UserRole, { title: string; url: string; icon: typeof LayoutDashboard }[]> = {
     admin: [
         { title: "Inicio", url: "/dashboard", icon: LayoutDashboard },
-        { title: "Usuarios", url: "/dashboard/usuarios", icon: UserCog },
-        { title: "Estudiantes", url: "/dashboard/estudiantes", icon: Users },
-        { title: "Eventos", url: "/dashboard/eventos", icon: Calendar },
-        { title: "Reportes", url: "/dashboard/reportes", icon: BarChart3 },
+        { title: "Usuarios", url: "/dashboard/admin/usuarios", icon: UserCog },
+        { title: "Estudiantes", url: "/dashboard/admin/estudiantes", icon: Users },
+        { title: "Eventos", url: "/dashboard/admin/eventos", icon: Calendar },
+        { title: "Reportes", url: "/dashboard/admin/reportes", icon: BarChart3 },
     ],
     docente: [
         { title: "Inicio", url: "/dashboard", icon: LayoutDashboard },
