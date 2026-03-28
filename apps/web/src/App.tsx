@@ -3,7 +3,8 @@ import Home from '@/pages/Home'
 import Login from '@/pages/Login'
 import { AuthProvider } from '@/contexts/AuthContext'
 import Dashboard from '@/pages/Dashboard'
-import { ProtectedRoute } from './components/ProtectedRoute'
+import { ProtectedRoute } from '@/components/ProtectedRoute'
+import DashboardLayout from '@/pages/DashboardLayout'
 
 function App() {
   return (
@@ -12,14 +13,18 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            }
-          />
+          
+          
+          {/*<Route path="/dashboard" element={<ProtectedRoute> <Dashboard /> </ProtectedRoute>}/>*/}
+
+          <Route path="/dashboard" element={<ProtectedRoute> <DashboardLayout /> </ProtectedRoute>}>
+          
+            <Route index element={<Dashboard />} />
+
+          </Route>
+
+
+
         </Routes>
       </AuthProvider>
     </BrowserRouter>
