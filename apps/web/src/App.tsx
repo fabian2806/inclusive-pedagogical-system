@@ -5,6 +5,7 @@ import { AuthProvider } from '@/contexts/AuthContext'
 import Dashboard from '@/pages/Dashboard'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import DashboardLayout from '@/pages/DashboardLayout'
+import { AdminStudents } from '@/pages/admin/AdminStudents'
 
 function App() {
   return (
@@ -22,7 +23,7 @@ function App() {
 
             <Route path='admin'>
               <Route path='usuarios' element={<div>Admin - Usuarios</div>} />
-              <Route path='estudiantes' element={<div>Admin - Estudiantes</div>} />
+              <Route path='estudiantes' element={<AdminStudents />} />
               <Route path='eventos' element={<div>Admin - Eventos</div>} />
               <Route path='reportes' element={<div>Admin - Reportes</div>} />
             </Route>
