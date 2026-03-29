@@ -6,6 +6,7 @@ import Dashboard from '@/pages/Dashboard'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import DashboardLayout from '@/pages/DashboardLayout'
 import { AdminStudents } from '@/pages/admin/AdminStudents'
+import AdminUsers from '@/pages/admin/AdminUsers'
 
 function App() {
   return (
@@ -22,7 +23,7 @@ function App() {
             <Route index element={<Dashboard />} />
 
             <Route path='admin'>
-              <Route path='usuarios' element={<div>Admin - Usuarios</div>} />
+              <Route path='usuarios' element={<AdminUsers />} />
               <Route path='estudiantes' element={<AdminStudents />} />
               <Route path='eventos' element={<div>Admin - Eventos</div>} />
               <Route path='reportes' element={<div>Admin - Reportes</div>} />

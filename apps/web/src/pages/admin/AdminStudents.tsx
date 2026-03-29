@@ -251,7 +251,7 @@ export function AdminStudents() {
             />
         </div>
 
-        {/* Filtros para los registros (considerar lógica al exportar a componentes) */}
+        {/* Filtros para los registros */}
         <SearchFilterBar
             search={search}
             onSearchChange={setSearch}
