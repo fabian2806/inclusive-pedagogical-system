@@ -7,6 +7,7 @@ import { ProtectedRoute } from '@/components/ProtectedRoute'
 import DashboardLayout from '@/pages/DashboardLayout'
 import { AdminStudents } from '@/pages/admin/AdminStudents'
 import AdminUsers from '@/pages/admin/AdminUsers'
+import AdminDocuments from './pages/admin/AdminDocuments'
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
             <Route path='admin'>
               <Route path='usuarios' element={<AdminUsers />} />
               <Route path='estudiantes' element={<AdminStudents />} />
+              <Route path='tipos-documento' element={<AdminDocuments />} />
               <Route path='eventos' element={<div>Admin - Eventos</div>} />
               <Route path='reportes' element={<div>Admin - Reportes</div>} />
             </Route>

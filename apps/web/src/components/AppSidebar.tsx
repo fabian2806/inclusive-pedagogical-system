@@ -1,7 +1,7 @@
 import { useAuth } from "@/hooks/useAuth";
 import type { UserRole } from "@/types/auth";
 import { getRoleDisplayName, getRoleColor } from "@/lib/roles"
-import { BarChart3, Calendar, FileText, GraduationCap, LayoutDashboard, LogOut, MessageSquare, Settings, Shield, UserCog, Users } from "lucide-react";
+import { BarChart3, Calendar, FileText, FolderCog, GraduationCap, LayoutDashboard, LogOut, MessageSquare, Settings, Shield, UserCog, Users } from "lucide-react";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, 
     SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarSeparator } from "@/components/ui/sidebar"
 import { Link, useLocation } from "react-router-dom";
@@ -13,6 +13,7 @@ const menuConfig: Record<UserRole, { title: string; url: string; icon: typeof La
         { title: "Inicio", url: "/dashboard", icon: LayoutDashboard },
         { title: "Usuarios", url: "/dashboard/admin/usuarios", icon: UserCog },
         { title: "Estudiantes", url: "/dashboard/admin/estudiantes", icon: Users },
+        { title: "Tipos Documento", url: "/dashboard/admin/tipos-documento", icon: FolderCog },
         { title: "Eventos", url: "/dashboard/admin/eventos", icon: Calendar },
         { title: "Reportes", url: "/dashboard/admin/reportes", icon: BarChart3 },
     ],
