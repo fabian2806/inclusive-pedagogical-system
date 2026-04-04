@@ -1,0 +1,79 @@
+package pe.edu.pucp.signaedu.signaedu_backend.controller;
+
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+import pe.edu.pucp.signaedu.signaedu_backend.dto.request.AlumnoCreateRequest;
+import pe.edu.pucp.signaedu.signaedu_backend.dto.request.AlumnoUpdateRequest;
+import pe.edu.pucp.signaedu.signaedu_backend.dto.response.AlumnoResponse;
+import pe.edu.pucp.signaedu.signaedu_backend.service.AlumnoService;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/admin/alumnos")
+@RequiredArgsConstructor
+@PreAuthorize("hasRole('ADMIN')")
+public class AlumnoController {
+
+    private final AlumnoService alumnoService;
+
+    @PostMapping
+    public ResponseEntity<AlumnoResponse> crearAlumno(@Valid @RequestBody AlumnoCreateRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(alumnoService.crearAlumno(request));
+    }
+
+    @GetMapping
+    public ResponseEntity<List<AlumnoResponse>> listarAlumnos() {
+        return ResponseEntity.ok(alumnoService.listarAlumnos());
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<AlumnoResponse> obtenerAlumno(@PathVariable Long id) {
+        return ResponseEntity.ok(alumnoService.obtenerAlumnoPorId(id));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<AlumnoResponse> actualizarAlumno(
+            @PathVariable Long id,
+            @Valid @RequestBody AlumnoUpdateRequest request) {
+        return ResponseEntity.ok(alumnoService.actualizarAlumno(id, request));
+    }
+
+    @PatchMapping("/{id}/desactivar")
+    public ResponseEntity<Void> desactivarAlumno(@PathVariable Long id) {
+        alumnoService.desactivarAlumno(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/docentes/{docenteId}")
+    public ResponseEntity<AlumnoResponse> asignarDocente(
+            @PathVariable Long id,
+            @PathVariable Long docenteId) {
+        return ResponseEntity.ok(alumnoService.asignarDocente(id, docenteId));
+    }
+
+    @DeleteMapping("/{id}/docentes/{docenteId}")
+    public ResponseEntity<AlumnoResponse> removerDocente(
+            @PathVariable Long id,
+            @PathVariable Long docenteId) {
+        return ResponseEntity.ok(alumnoService.removerDocente(id, docenteId));
+    }
+
+    @PostMapping("/{id}/padres/{padreId}")
+    public ResponseEntity<AlumnoResponse> asignarPadre(
+            @PathVariable Long id,
+            @PathVariable Long padreId) {
+        return ResponseEntity.ok(alumnoService.asignarPadre(id, padreId));
+    }
+
+    @DeleteMapping("/{id}/padres/{padreId}")
+    public ResponseEntity<AlumnoResponse> removerPadre(
+            @PathVariable Long id,
+            @PathVariable Long padreId) {
+        return ResponseEntity.ok(alumnoService.removerPadre(id, padreId));
+    }
+}
