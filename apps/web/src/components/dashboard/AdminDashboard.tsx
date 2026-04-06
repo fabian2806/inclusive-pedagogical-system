@@ -38,7 +38,7 @@ const userSummary = [
 
 export default function AdminDashboard() {
   const { user } = useAuth()
-  const firstName = user?.nombre?.split(" ")[0] || "Admin"
+  const firstName = user?.nombre || "Admin"
 
   return (
     <div className="p-6 space-y-6">

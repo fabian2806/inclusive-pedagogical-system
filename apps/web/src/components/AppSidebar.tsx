@@ -140,11 +140,11 @@ export function AppSidebar() {
         <div className="flex items-center gap-3">
           <Avatar className="h-9 w-9">
             <AvatarFallback className={`${rolColor.bg} ${rolColor.text} text-xs font-semibold`}>
-              {user?.nombre?.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() || "US"}
+              {((user?.nombre?.[0] ?? "") + (user?.apellido?.[0] ?? "")).toUpperCase() || "US"}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-[#1E3A5F] truncate">{user?.nombre || "Usuario"}</p>
+            <p className="text-sm font-medium text-[#1E3A5F] truncate">{user ? `${user.nombre} ${user.apellido}` : "Usuario"}</p>
             <p className="text-xs text-[#6B7280] truncate">{getRoleDisplayName(rol)}</p>
           </div>
           <button
