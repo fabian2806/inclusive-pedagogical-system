@@ -3,35 +3,32 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { CheckCircle, Clock, Edit, Lock, MoreHorizontal, RefreshCw, Trash2 } from "lucide-react"
+import { Clock, Edit, Lock, MoreHorizontal, RefreshCw, Trash2 } from "lucide-react"
 import type { TipoDocumento } from "@/types/document"
 
 interface DocumentsTableProps {
     documentos: TipoDocumento[]
     onEdit: (tipo: TipoDocumento) => void
-    onToggleActive: (id: string) => void
-    onDelete: (id: string) => void
+    onDelete: (id: number) => void
 }
 
-export function DocumentsTable({ documentos, onEdit, onToggleActive, onDelete }: DocumentsTableProps) {
+export function DocumentsTable({ documentos, onEdit, onDelete }: DocumentsTableProps) {
     return (
         <Card className="border-[#E5E7EB]">
             <CardContent className="p-0">
                 <Table>
                     <TableHeader>
                         <TableRow className="bg-[#F9FAFB] hover:bg-[#F9FAFB]">
-                            <TableHead className="text-[#6B7280] font-semibold">Código</TableHead>
                             <TableHead className="text-[#6B7280] font-semibold">Nombre</TableHead>
                             <TableHead className="text-[#6B7280] font-semibold">Características</TableHead>
                             <TableHead className="text-[#6B7280] font-semibold">Origen</TableHead>
-                            <TableHead className="text-[#6B7280] font-semibold">Estado</TableHead>
                             <TableHead className="text-[#6B7280] font-semibold text-right">Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {documentos.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={6} className="text-center py-8 text-[#9CA3AF]">
+                                <TableCell colSpan={4} className="text-center py-8 text-[#9CA3AF]">
                                     No se encontraron tipos de documento
                                 </TableCell>
                             </TableRow>
@@ -39,15 +36,7 @@ export function DocumentsTable({ documentos, onEdit, onToggleActive, onDelete }:
                             documentos.map((tipo) => (
                                 <TableRow key={tipo.id} className="hover:bg-[#F9FAFB]">
                                     <TableCell>
-                                        <Badge variant="outline" className="font-mono text-xs">
-                                            {tipo.codigo}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell>
-                                        <div>
-                                            <p className="font-medium text-[#1E3A5F]">{tipo.nombre}</p>
-                                            <p className="text-xs text-[#6B7280] max-w-[300px] truncate">{tipo.descripcion}</p>
-                                        </div>
+                                        <p className="font-medium text-[#1E3A5F]">{tipo.nombre}</p>
                                     </TableCell>
                                     <TableCell>
                                         <div className="flex flex-wrap gap-1">
@@ -77,23 +66,8 @@ export function DocumentsTable({ documentos, onEdit, onToggleActive, onDelete }:
                                                 Sistema
                                             </Badge>
                                         ) : (
-                                            <div className="text-xs text-[#6B7280]">
-                                                <p>{tipo.creadoPor}</p>
-                                                <p className="text-[#9CA3AF]">{tipo.fechaCreacion}</p>
-                                            </div>
+                                            <span className="text-xs text-[#6B7280]">Personalizado</span>
                                         )}
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge
-                                            variant="outline"
-                                            className={`text-[10px] ${
-                                                tipo.activo
-                                                    ? "bg-[#ECFDF5] text-[#059669] border-[#A7F3D0]"
-                                                    : "bg-[#F3F4F6] text-[#6B7280] border-[#E5E7EB]"
-                                            }`}
-                                        >
-                                            {tipo.activo ? "Activo" : "Inactivo"}
-                                        </Badge>
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <DropdownMenu>
@@ -104,26 +78,11 @@ export function DocumentsTable({ documentos, onEdit, onToggleActive, onDelete }:
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
                                                 {!tipo.esPredefinido && (
-                                                    <DropdownMenuItem onClick={() => onEdit(tipo)}>
-                                                        <Edit size={14} className="mr-2" />
-                                                        Editar
-                                                    </DropdownMenuItem>
-                                                )}
-                                                <DropdownMenuItem onClick={() => onToggleActive(tipo.id)}>
-                                                    {tipo.activo ? (
-                                                        <>
-                                                            <CheckCircle size={14} className="mr-2" />
-                                                            Desactivar
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <CheckCircle size={14} className="mr-2" />
-                                                            Activar
-                                                        </>
-                                                    )}
-                                                </DropdownMenuItem>
-                                                {!tipo.esPredefinido && (
                                                     <>
+                                                        <DropdownMenuItem onClick={() => onEdit(tipo)}>
+                                                            <Edit size={14} className="mr-2" />
+                                                            Editar
+                                                        </DropdownMenuItem>
                                                         <DropdownMenuSeparator />
                                                         <DropdownMenuItem
                                                             onClick={() => onDelete(tipo.id)}

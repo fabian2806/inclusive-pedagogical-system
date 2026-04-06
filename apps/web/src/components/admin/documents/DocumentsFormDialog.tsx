@@ -4,7 +4,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { Textarea } from "@/components/ui/textarea"
 import type { TipoDocumentoFormData } from "@/types/document"
 
 interface DocumentsFormDialogProps {
@@ -14,6 +13,8 @@ interface DocumentsFormDialogProps {
     onChange: (data: TipoDocumentoFormData) => void
     onSave: () => void
     onCancel: () => void
+    saving?: boolean
+    saveError?: string | null
 }
 
 export function DocumentsFormDialog({
@@ -23,6 +24,8 @@ export function DocumentsFormDialog({
     onChange,
     onSave,
     onCancel,
+    saving = false,
+    saveError = null,
 }: DocumentsFormDialogProps) {
     return (
         <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onCancel()}>
@@ -34,41 +37,19 @@ export function DocumentsFormDialog({
                 </DialogHeader>
 
                 <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="codigo">Código *</Label>
-                            <Input
-                                id="codigo"
-                                placeholder="Ej: CERT_AUD"
-                                value={formData.codigo}
-                                onChange={(e) => onChange({ ...formData, codigo: e.target.value.toUpperCase() })}
-                                className="border-[#E5E7EB] font-mono"
-                                disabled={isEditing}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="nombre">Nombre *</Label>
-                            <Input
-                                id="nombre"
-                                placeholder="Nombre del tipo"
-                                value={formData.nombre}
-                                onChange={(e) => onChange({ ...formData, nombre: e.target.value })}
-                                className="border-[#E5E7EB]"
-                            />
-                        </div>
-                    </div>
-
+                    {/* Nombre */}
                     <div className="space-y-2">
-                        <Label htmlFor="descripcion">Descripción</Label>
-                        <Textarea
-                            id="descripcion"
-                            placeholder="Describe el propósito de este tipo de documento..."
-                            value={formData.descripcion}
-                            onChange={(e) => onChange({ ...formData, descripcion: e.target.value })}
-                            className="border-[#E5E7EB] min-h-[80px]"
+                        <Label htmlFor="nombre">Nombre *</Label>
+                        <Input
+                            id="nombre"
+                            placeholder="Nombre del tipo de documento"
+                            value={formData.nombre}
+                            onChange={(e) => onChange({ ...formData, nombre: e.target.value })}
+                            className="border-[#E5E7EB]"
                         />
                     </div>
 
+                    {/* Switches */}
                     <div className="space-y-4 pt-2">
                         <div className="flex items-center justify-between p-3 rounded-lg bg-[#F9FAFB]">
                             <div>
@@ -128,6 +109,13 @@ export function DocumentsFormDialog({
                     </div>
                 </div>
 
+                {/* Error de guardado */}
+                {saveError && (
+                    <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+                        {saveError}
+                    </div>
+                )}
+
                 {/* Botones */}
                 <div className="flex justify-end gap-2 pt-2">
                     <Button
@@ -140,9 +128,9 @@ export function DocumentsFormDialog({
                     <Button
                         className="bg-[#1E3A5F] hover:bg-[#2D4A6F] text-white"
                         onClick={onSave}
-                        disabled={!formData.nombre || !formData.codigo}
+                        disabled={!formData.nombre || saving}
                     >
-                        {isEditing ? "Guardar cambios" : "Crear tipo"}
+                        {saving ? "Guardando..." : isEditing ? "Guardar cambios" : "Crear tipo"}
                     </Button>
                 </div>
             </DialogContent>
