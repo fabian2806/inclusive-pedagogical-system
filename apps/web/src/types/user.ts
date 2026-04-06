@@ -1,20 +1,20 @@
-export type UserRole = "docente" | "padre" | "saanee" | "admin"
+import type { TipoRol, EstadoUsuario } from './api'
 
 export interface User {
-  id: string
-  name: string
-  email: string
-  phone: string
-  role: UserRole
-  status: "active" | "inactive"
-  createdAt: string
-  lastLogin?: string
+  id: number
+  nombre: string
+  apellido: string
+  correo: string
+  telefono: string | null
+  estado: EstadoUsuario
+  roles: TipoRol[]
 }
 
 export interface UserFormData {
-  name: string
-  email: string
-  phone: string
-  role: UserRole
+  nombre: string
+  apellido: string
+  correo: string
+  telefono: string
   password: string
+  rol: TipoRol
 }

@@ -3,7 +3,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { type UserFormData, type UserRole } from "@/types/user"
+import type { UserFormData } from "@/types/user"
+import type { TipoRol } from "@/types/api"
 
 interface UserFormDialogProps {
   open: boolean
@@ -12,6 +13,7 @@ interface UserFormDialogProps {
   onChange: (data: UserFormData) => void
   onSave: () => void
   onCancel: () => void
+  saving?: boolean
 }
 
 export function UserFormDialog({
@@ -20,7 +22,8 @@ export function UserFormDialog({
   formData,
   onChange,
   onSave,
-  onCancel
+  onCancel,
+  saving = false,
 }: UserFormDialogProps) {
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onCancel()}>
@@ -32,43 +35,57 @@ export function UserFormDialog({
         </DialogHeader>
 
         <div className="space-y-4 pt-2">
-          {/* Nombre completo */}
-          <div className="space-y-1.5">
-            <Label htmlFor="name" className="text-sm text-[#374151]">
-              Nombre completo
-            </Label>
-            <Input
-              id="name"
-              value={formData.name}
-              onChange={(e) => onChange({ ...formData, name: e.target.value })}
-              placeholder="Ej: María Elena Castro"
-              className="border-[#E5E7EB]"
-            />
-          </div>
-
-          {/* Email y Teléfono */}
+          {/* Nombre y Apellido */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-sm text-[#374151]">
+              <Label htmlFor="nombre" className="text-sm text-[#374151]">
+                Nombre
+              </Label>
+              <Input
+                id="nombre"
+                value={formData.nombre}
+                onChange={(e) => onChange({ ...formData, nombre: e.target.value })}
+                placeholder="Ej: María Elena"
+                className="border-[#E5E7EB]"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="apellido" className="text-sm text-[#374151]">
+                Apellido
+              </Label>
+              <Input
+                id="apellido"
+                value={formData.apellido}
+                onChange={(e) => onChange({ ...formData, apellido: e.target.value })}
+                placeholder="Ej: Castro"
+                className="border-[#E5E7EB]"
+              />
+            </div>
+          </div>
+
+          {/* Correo y Teléfono */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="correo" className="text-sm text-[#374151]">
                 Correo electrónico
               </Label>
               <Input
-                id="email"
+                id="correo"
                 type="email"
-                value={formData.email}
-                onChange={(e) => onChange({ ...formData, email: e.target.value })}
+                value={formData.correo}
+                onChange={(e) => onChange({ ...formData, correo: e.target.value })}
                 placeholder="correo@ejemplo.com"
                 className="border-[#E5E7EB]"
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="phone" className="text-sm text-[#374151]">
+              <Label htmlFor="telefono" className="text-sm text-[#374151]">
                 Teléfono
               </Label>
               <Input
-                id="phone"
-                value={formData.phone}
-                onChange={(e) => onChange({ ...formData, phone: e.target.value })}
+                id="telefono"
+                value={formData.telefono}
+                onChange={(e) => onChange({ ...formData, telefono: e.target.value })}
                 placeholder="987 654 321"
                 className="border-[#E5E7EB]"
               />
@@ -80,16 +97,16 @@ export function UserFormDialog({
             <div className="space-y-1.5">
               <Label className="text-sm text-[#374151]">Rol</Label>
               <Select
-                value={formData.role}
-                onValueChange={(value: UserRole) => onChange({ ...formData, role: value })}
+                value={formData.rol}
+                onValueChange={(value: TipoRol) => onChange({ ...formData, rol: value })}
               >
                 <SelectTrigger className="border-[#E5E7EB]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="docente">Docente</SelectItem>
-                  <SelectItem value="padre">Padre/Tutor</SelectItem>
-                  <SelectItem value="saanee">SAANEE</SelectItem>
+                  <SelectItem value="DOCENTE">Docente</SelectItem>
+                  <SelectItem value="PADRE">Padre/Tutor</SelectItem>
+                  <SelectItem value="SAANEE">SAANEE</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -119,9 +136,10 @@ export function UserFormDialog({
             </Button>
             <Button
               onClick={onSave}
+              disabled={saving}
               className="bg-[#1E3A5F] hover:bg-[#2D4A6F] text-white"
             >
-              {isEditing ? "Guardar cambios" : "Crear usuario"}
+              {saving ? "Guardando..." : isEditing ? "Guardar cambios" : "Crear usuario"}
             </Button>
           </div>
         </div>

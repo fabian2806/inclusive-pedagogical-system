@@ -1,154 +1,138 @@
-import { useState } from "react"
-import { Plus, Users, GraduationCap, UserCog, Shield } from "lucide-react"
+import { useState, useCallback } from "react"
+import { Plus, Users, GraduationCap, UserCog, Shield, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { StatsCard } from "@/components/admin/StatsCard"
 import { StatusBadge } from "@/components/admin/StatusBadge"
 import { SearchFilterBar } from "@/components/admin/SearchFilterBar"
 import { UsersTable } from "@/components/admin/users/UsersTable"
 import { UserFormDialog } from "@/components/admin/users/UsersFormDialog"
-import type { User, UserRole } from "@/types/user"
+import type { User, UserFormData } from "@/types/user"
+import type { TipoRol } from "@/types/api"
+import { usuariosService } from "@/lib/api"
+import { useApiQuery } from "@/hooks/useApiQuery"
+import { AxiosError } from "axios"
 
-// Mock users data
-const initialUsers: User[] = [
-    {
-        id: "1",
-        name: "María Elena Castro",
-        email: "mcastro@signaedu.pe",
-        phone: "987 654 321",
-        role: "docente",
-        status: "active",
-        createdAt: "15 Ene 2025",
-        lastLogin: "Hoy",
-    },
-    {
-        id: "2",
-        name: "Roberto Quispe",
-        email: "rquispe@signaedu.pe",
-        phone: "912 345 678",
-        role: "saanee",
-        status: "active",
-        createdAt: "20 Ene 2025",
-        lastLogin: "Ayer",
-    },
-    {
-        id: "3",
-        name: "Elena Pérez",
-        email: "eperez@gmail.com",
-        phone: "945 678 123",
-        role: "padre",
-        status: "active",
-        createdAt: "25 Ene 2025",
-        lastLogin: "Hace 2 días",
-    },
-    {
-        id: "4",
-        name: "Carlos Mendoza",
-        email: "cmendoza@signaedu.pe",
-        phone: "956 789 234",
-        role: "docente",
-        status: "active",
-        createdAt: "10 Feb 2025",
-        lastLogin: "Hoy",
-    },
-    {
-        id: "5",
-        name: "Ana García",
-        email: "agarcia@signaedu.pe",
-        phone: "978 123 456",
-        role: "saanee",
-        status: "inactive",
-        createdAt: "5 Feb 2025",
-    },
-    {
-        id: "6",
-        name: "Juan Rodríguez",
-        email: "jrodriguez@gmail.com",
-        phone: "934 567 890",
-        role: "padre",
-        status: "active",
-        createdAt: "1 Mar 2025",
-        lastLogin: "Hace 1 semana",
-    },
-]
-
-const emptyUser = {
-    name: "",
-    email: "",
-    phone: "",
-    role: "docente" as UserRole,
+const emptyUser: UserFormData = {
+    nombre: "",
+    apellido: "",
+    correo: "",
+    telefono: "",
     password: "",
+    rol: "DOCENTE",
 }
 
 export default function UsuariosPage() {
-    const [users, setUsers] = useState<User[]>(initialUsers)
+    const fetchUsuarios = useCallback(() => usuariosService.listar(), [])
+    const { data: users, isLoading, error, refetch } = useApiQuery(fetchUsuarios)
+
     const [search, setSearch] = useState("")
     const [roleFilter, setRoleFilter] = useState<string>("all")
     const [statusFilter, setStatusFilter] = useState<string>("all")
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [editingUser, setEditingUser] = useState<User | null>(null)
-    const [formData, setFormData] = useState(emptyUser)
+    const [formData, setFormData] = useState<UserFormData>(emptyUser)
+    const [saving, setSaving] = useState(false)
+    const [saveError, setSaveError] = useState<string | null>(null)
 
-    // Filter users
-    const filteredUsers = users.filter((user) => {
+    const allUsers = (users ?? []) as User[]
+
+    // Filtrar usuarios
+    const filteredUsers = allUsers.filter((user) => {
+        const nombreCompleto = `${user.nombre} ${user.apellido}`.toLowerCase()
         const matchesSearch =
-            user.name.toLowerCase().includes(search.toLowerCase()) ||
-            user.email.toLowerCase().includes(search.toLowerCase())
-        const matchesRole = roleFilter === "all" || user.role === roleFilter
-        const matchesStatus = statusFilter === "all" || user.status === statusFilter
+            nombreCompleto.includes(search.toLowerCase()) ||
+            user.correo.toLowerCase().includes(search.toLowerCase())
+        const matchesRole = roleFilter === "all" || user.roles.includes(roleFilter as TipoRol)
+        const matchesStatus = statusFilter === "all" || user.estado === statusFilter
         return matchesSearch && matchesRole && matchesStatus
     })
 
     const handleOpenCreate = () => {
         setEditingUser(null)
         setFormData(emptyUser)
+        setSaveError(null)
         setIsDialogOpen(true)
     }
 
     const handleOpenEdit = (user: User) => {
         setEditingUser(user)
         setFormData({
-            name: user.name,
-            email: user.email,
-            phone: user.phone,
-            role: user.role,
+            nombre: user.nombre,
+            apellido: user.apellido,
+            correo: user.correo,
+            telefono: user.telefono ?? "",
             password: "",
+            rol: user.roles[0] ?? "DOCENTE",
         })
+        setSaveError(null)
         setIsDialogOpen(true)
     }
 
-    const handleSave = () => {
-        if (editingUser) {
-            // Update existing user
-            setUsers(users.map((u) =>
-                u.id === editingUser.id
-                    ? { ...u, name: formData.name, email: formData.email, phone: formData.phone, role: formData.role }
-                    : u
-            ))
-        } else {
-            // Create new user
-            const newUser: User = {
-                id: String(Date.now()),
-                name: formData.name,
-                email: formData.email,
-                phone: formData.phone,
-                role: formData.role,
-                status: "active",
-                createdAt: new Date().toLocaleDateString("es-PE", { day: "numeric", month: "short", year: "numeric" }),
+    const handleSave = async () => {
+        setSaving(true)
+        setSaveError(null)
+        try {
+            if (editingUser) {
+                await usuariosService.actualizar(editingUser.id, {
+                    nombre: formData.nombre,
+                    apellido: formData.apellido,
+                    correo: formData.correo,
+                    telefono: formData.telefono || undefined,
+                    password: formData.password || undefined,
+                    rol: formData.rol !== editingUser.roles[0] ? formData.rol : undefined,
+                })
+            } else {
+                await usuariosService.crear({
+                    nombre: formData.nombre,
+                    apellido: formData.apellido,
+                    correo: formData.correo,
+                    telefono: formData.telefono || undefined,
+                    password: formData.password,
+                    rol: formData.rol,
+                })
             }
-            setUsers([newUser, ...users])
+            setIsDialogOpen(false)
+            setFormData(emptyUser)
+            refetch()
+        } catch (err) {
+            if (err instanceof AxiosError) {
+                setSaveError(err.response?.data?.mensaje ?? "Error al guardar usuario")
+            } else {
+                setSaveError("Error inesperado")
+            }
+        } finally {
+            setSaving(false)
         }
-        setIsDialogOpen(false)
-        setFormData(emptyUser)
     }
 
-    const handleToggleStatus = (userId: string) => {
-        setUsers(users.map((u) =>
-            u.id === userId ? { ...u, status: u.status === "active" ? "inactive" : "active" } : u
-        ))
+    const handleDesactivar = async (userId: number) => {
+        try {
+            await usuariosService.desactivar(userId)
+            refetch()
+        } catch (err) {
+            console.error("Error al desactivar usuario:", err)
+        }
     }
 
-    const handleDelete = (userId: string) => {
-        setUsers(users.filter((u) => u.id !== userId))
+    if (isLoading) {
+        return (
+            <div className="p-6 flex items-center justify-center min-h-[400px]">
+                <Loader2 className="h-8 w-8 animate-spin text-[#1E3A5F]" />
+            </div>
+        )
+    }
+
+    if (error) {
+        return (
+            <div className="p-6">
+                <div className="p-4 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+                    {error}
+                    <Button variant="link" onClick={refetch} className="ml-2 text-red-700 underline p-0 h-auto">
+                        Reintentar
+                    </Button>
+                </div>
+            </div>
+        )
     }
 
     return (
@@ -172,12 +156,12 @@ export default function UsuariosPage() {
                 <StatsCard
                     icon={Users}
                     title="Total usuarios"
-                    value={users.length}
+                    value={allUsers.length}
                     color="blue"
                     subtitle={
                         <StatusBadge
-                            active={users.filter((u) => u.status === "active").length}
-                            inactive={users.filter((u) => u.status === "inactive").length}
+                            active={allUsers.filter((u) => u.estado === "ACTIVO").length}
+                            inactive={allUsers.filter((u) => u.estado === "INACTIVO").length}
                         />
                     }
                 />
@@ -185,21 +169,21 @@ export default function UsuariosPage() {
                 <StatsCard
                     icon={GraduationCap}
                     title="Docentes"
-                    value={users.filter((u) => u.role === "docente").length}
+                    value={allUsers.filter((u) => u.roles.includes("DOCENTE")).length}
                     color="blue"
                 />
 
                 <StatsCard
                     icon={UserCog}
                     title="Padres/Tutores"
-                    value={users.filter((u) => u.role === "padre").length}
+                    value={allUsers.filter((u) => u.roles.includes("PADRE")).length}
                     color="purple"
                 />
 
                 <StatsCard
                     icon={Shield}
                     title="SAANEE"
-                    value={users.filter((u) => u.role === "saanee").length}
+                    value={allUsers.filter((u) => u.roles.includes("SAANEE")).length}
                     color="green"
                 />
             </div>
@@ -213,13 +197,13 @@ export default function UsuariosPage() {
                         label: "Filtrar por rol",
                         value: "role",
                         selectItem: "Todos los roles",
-                        options: ["docente", "padre", "saanee"]
+                        options: ["DOCENTE", "PADRE", "SAANEE"]
                     },
                     {
                         label: "Estado",
                         value: "status",
                         selectItem: "Todos",
-                        options: ["active", "inactive"]
+                        options: ["ACTIVO", "INACTIVO"]
                     }
                 ]}
                 filterValues={{
@@ -236,8 +220,7 @@ export default function UsuariosPage() {
             <UsersTable
                 users={filteredUsers}
                 onEdit={handleOpenEdit}
-                onToggleStatus={handleToggleStatus}
-                onDelete={handleDelete}
+                onDesactivar={handleDesactivar}
             />
 
             {/* Create/Edit Dialog */}
@@ -247,12 +230,21 @@ export default function UsuariosPage() {
                 formData={formData}
                 onChange={setFormData}
                 onSave={handleSave}
+                saving={saving}
                 onCancel={() => {
                     setIsDialogOpen(false)
                     setEditingUser(null)
                     setFormData(emptyUser)
+                    setSaveError(null)
                 }}
             />
+
+            {/* Error de guardado */}
+            {saveError && (
+                <div className="fixed bottom-4 right-4 p-4 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700 shadow-lg">
+                    {saveError}
+                </div>
+            )}
         </div>
     )
 }
