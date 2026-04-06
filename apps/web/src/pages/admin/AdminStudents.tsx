@@ -1,202 +1,196 @@
-import { Button } from "@/components/ui/button";
-import { Ear, GraduationCap, Plus, UserCheck, Users } from "lucide-react";
-import { useState } from "react";
-import { type Student } from '@/types/student'
-import { StatsCard } from "@/components/admin/StatsCard";
-import { StatusBadge } from "@/components/admin/StatusBadge";
-import { SearchFilterBar } from "@/components/admin/SearchFilterBar";
-import { StudentsTable } from "@/components/admin/students/StudentsTable";
-import { useNavigate } from "react-router-dom";
-import { StudentFormDialog } from "@/components/admin/students/StudentsFormDialog";
+import { Button } from "@/components/ui/button"
+import { GraduationCap, Plus, UserCheck, Users, Loader2 } from "lucide-react"
+import { useState, useCallback } from "react"
+import type { Student, StudentFormData } from '@/types/student'
+import type { UsuarioSimpleResponse } from '@/types/api'
+import { StatsCard } from "@/components/admin/StatsCard"
+import { StatusBadge } from "@/components/admin/StatusBadge"
+import { SearchFilterBar } from "@/components/admin/SearchFilterBar"
+import { StudentsTable } from "@/components/admin/students/StudentsTable"
+import { StudentFormDialog } from "@/components/admin/students/StudentsFormDialog"
+import { alumnosService, usuariosService } from "@/lib/api"
+import { useApiQuery } from "@/hooks/useApiQuery"
+import { AxiosError } from "axios"
 
-// Data mock de estudiantes
-const initialStudents: Student[] = [
-    {
-        id: "1",
-        name: "Sofía Rodríguez",
-        grade: "3° Primaria",
-        section: "A",
-        hearingLevel: "Hipoacusia severa bilateral",
-        docente: "María Elena Castro",
-        docenteId: "1",
-        padre: "Elena Pérez",
-        padreId: "3",
-        status: "active",
-        createdAt: "15 Ene 2025",
-    },
-    {
-        id: "2",
-        name: "Carlos Mendoza Jr.",
-        grade: "4° Primaria",
-        section: "B",
-        hearingLevel: "Hipoacusia moderada unilateral",
-        docente: "Carlos Mendoza",
-        docenteId: "4",
-        padre: "Juan Rodríguez",
-        padreId: "6",
-        status: "active",
-        createdAt: "20 Ene 2025",
-    },
-    {
-        id: "3",
-        name: "Ana Torres",
-        grade: "2° Primaria",
-        section: "A",
-        hearingLevel: "Hipoacusia profunda bilateral",
-        docente: "María Elena Castro",
-        docenteId: "1",
-        padre: "Laura Torres",
-        padreId: "7",
-        status: "active",
-        createdAt: "5 Feb 2025",
-    },
-    {
-        id: "4",
-        name: "Miguel Sánchez",
-        grade: "5° Primaria",
-        section: "A",
-        hearingLevel: "Hipoacusia moderada bilateral",
-        docente: "Carlos Mendoza",
-        docenteId: "4",
-        padre: "Pedro Sánchez",
-        padreId: "8",
-        status: "inactive",
-        createdAt: "10 Feb 2025",
-    },
-]
-
-// Mock de docentes y padres para los selects del formulario
-const availableTeachers = [
-    { id: "1", name: "María Elena Castro" },
-    { id: "4", name: "Carlos Mendoza" },
-]
-const availableParents = [
-    { id: "3", name: "Elena Pérez" },
-    { id: "6", name: "Juan Rodríguez" },
-    { id: "7", name: "Laura Torres" },
-    { id: "8", name: "Pedro Sánchez" },
-]
-
-// Mock de grados y niveles auditivos para los selects del formulario
 const grades = ["1° Primaria", "2° Primaria", "3° Primaria", "4° Primaria", "5° Primaria", "6° Primaria"]
 const sections = ["A", "B", "C"]
-const hearingLevels = [
-    "Hipoacusia leve unilateral",
-    "Hipoacusia leve bilateral",
-    "Hipoacusia moderada unilateral",
-    "Hipoacusia moderada bilateral",
-    "Hipoacusia severa unilateral",
-    "Hipoacusia severa bilateral",
-    "Hipoacusia profunda unilateral",
-    "Hipoacusia profunda bilateral",
-]
 
-const emptyStudent = {
-    name: "",
-    grade: "",
-    section: "",
-    hearingLevel: "",
+const emptyStudent: StudentFormData = {
+    nombre: "",
+    apellido: "",
+    fechaNacimiento: "",
+    grado: "",
+    seccion: "",
     docenteId: "",
     padreId: "",
-    notes: "",
 }
 
 export function AdminStudents() {
 
-    const navigate = useNavigate()
+    const fetchAlumnos = useCallback(() => alumnosService.listar(), [])
+    const fetchDocentes = useCallback(() => usuariosService.listar("DOCENTE"), [])
+    const fetchPadres = useCallback(() => usuariosService.listar("PADRE"), [])
 
-    const [students, setStudents] = useState<Student[]>(initialStudents)
+    const { data: students, isLoading, error, refetch } = useApiQuery(fetchAlumnos)
+    const { data: docentesData } = useApiQuery(fetchDocentes)
+    const { data: padresData } = useApiQuery(fetchPadres)
+
+    const allStudents = (students ?? []) as Student[]
+    const availableTeachers: UsuarioSimpleResponse[] = (docentesData ?? []).map((d) => ({
+        id: d.id, nombre: d.nombre, apellido: d.apellido, correo: d.correo,
+    }))
+    const availableParents: UsuarioSimpleResponse[] = (padresData ?? []).map((p) => ({
+        id: p.id, nombre: p.nombre, apellido: p.apellido, correo: p.correo,
+    }))
+
     const [search, setSearch] = useState("")
     const [gradeFilter, setGradeFilter] = useState<string>("all")
     const [statusFilter, setStatusFilter] = useState<string>("all")
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [editingStudent, setEditingStudent] = useState<Student | null>(null)
-    const [formData, setFormData] = useState(emptyStudent)
+    const [formData, setFormData] = useState<StudentFormData>(emptyStudent)
+    const [saving, setSaving] = useState(false)
+    const [saveError, setSaveError] = useState<string | null>(null)
 
-    // Filtrar estudiantes según búsqueda, grado y estado
-    const filteredStudents = students.filter((student) => {
+    // Filtrar estudiantes
+    const filteredStudents = allStudents.filter((student) => {
+        const nombreCompleto = `${student.nombre} ${student.apellido}`.toLowerCase()
+        const docenteNombre = student.docentes[0]
+            ? `${student.docentes[0].nombre} ${student.docentes[0].apellido}`.toLowerCase()
+            : ""
         const matchesSearch =
-            student.name.toLowerCase().includes(search.toLowerCase()) ||
-            student.docente.toLowerCase().includes(search.toLowerCase())
-        const matchesGrade = gradeFilter === "all" || student.grade === gradeFilter
-        const matchesStatus = statusFilter === "all" || student.status === statusFilter
+            nombreCompleto.includes(search.toLowerCase()) ||
+            docenteNombre.includes(search.toLowerCase())
+        const matchesGrade = gradeFilter === "all" || student.grado === gradeFilter
+        const matchesStatus = statusFilter === "all" || student.estado === statusFilter
         return matchesSearch && matchesGrade && matchesStatus
     })
 
     const handleOpenCreate = () => {
         setEditingStudent(null)
         setFormData(emptyStudent)
+        setSaveError(null)
         setIsDialogOpen(true)
     }
 
     const handleOpenEdit = (student: Student) => {
         setEditingStudent(student)
         setFormData({
-            name: student.name,
-            grade: student.grade,
-            section: student.section,
-            hearingLevel: student.hearingLevel,
-            docenteId: student.docenteId,
-            padreId: student.padreId,
-            notes: "",
+            nombre: student.nombre,
+            apellido: student.apellido,
+            fechaNacimiento: student.fechaNacimiento,
+            grado: student.grado,
+            seccion: student.seccion,
+            docenteId: student.docentes[0] ? String(student.docentes[0].id) : "",
+            padreId: student.padres[0] ? String(student.padres[0].id) : "",
         })
+        setSaveError(null)
         setIsDialogOpen(true)
     }
 
-    const handleSave = () => {
-        const docente = availableTeachers.find((d) => d.id === formData.docenteId)
-        const padre = availableParents.find((p) => p.id === formData.padreId)
+    const handleSave = async () => {
+        setSaving(true)
+        setSaveError(null)
+        try {
+            if (editingStudent) {
+                // Actualizar datos básicos
+                await alumnosService.actualizar(editingStudent.id, {
+                    nombre: formData.nombre,
+                    apellido: formData.apellido,
+                    fechaNacimiento: formData.fechaNacimiento,
+                    grado: formData.grado,
+                    seccion: formData.seccion,
+                })
 
-        if (editingStudent) {
-            setStudents(students.map((s) =>
-                s.id === editingStudent.id
-                    ? {
-                        ...s,
-                        name: formData.name,
-                        grade: formData.grade,
-                        section: formData.section,
-                        hearingLevel: formData.hearingLevel,
-                        docente: docente?.name || s.docente,
-                        docenteId: formData.docenteId,
-                        padre: padre?.name || s.padre,
-                        padreId: formData.padreId,
+                // Gestionar asignación de docente
+                const docenteActualId = editingStudent.docentes[0]?.id
+                const nuevoDocenteId = formData.docenteId ? Number(formData.docenteId) : null
+
+                if (docenteActualId !== nuevoDocenteId) {
+                    if (docenteActualId) {
+                        await alumnosService.removerDocente(editingStudent.id, docenteActualId)
                     }
-                    : s
-            ))
-        } else {
-            const newStudent: Student = {
-                id: String(Date.now()),
-                name: formData.name,
-                grade: formData.grade,
-                section: formData.section,
-                hearingLevel: formData.hearingLevel,
-                docente: docente?.name || "",
-                docenteId: formData.docenteId,
-                padre: padre?.name || "",
-                padreId: formData.padreId,
-                status: "active",
-                createdAt: new Date().toLocaleDateString("es-PE", { day: "numeric", month: "short", year: "numeric" }),
+                    if (nuevoDocenteId) {
+                        await alumnosService.asignarDocente(editingStudent.id, nuevoDocenteId)
+                    }
+                }
+
+                // Gestionar asignación de padre
+                const padreActualId = editingStudent.padres[0]?.id
+                const nuevoPadreId = formData.padreId ? Number(formData.padreId) : null
+
+                if (padreActualId !== nuevoPadreId) {
+                    if (padreActualId) {
+                        await alumnosService.removerPadre(editingStudent.id, padreActualId)
+                    }
+                    if (nuevoPadreId) {
+                        await alumnosService.asignarPadre(editingStudent.id, nuevoPadreId)
+                    }
+                }
+            } else {
+                // Crear alumno
+                const nuevoAlumno = await alumnosService.crear({
+                    nombre: formData.nombre,
+                    apellido: formData.apellido,
+                    fechaNacimiento: formData.fechaNacimiento,
+                    grado: formData.grado,
+                    seccion: formData.seccion,
+                })
+
+                // Asignar docente si fue seleccionado
+                if (formData.docenteId) {
+                    await alumnosService.asignarDocente(nuevoAlumno.id, Number(formData.docenteId))
+                }
+
+                // Asignar padre si fue seleccionado
+                if (formData.padreId) {
+                    await alumnosService.asignarPadre(nuevoAlumno.id, Number(formData.padreId))
+                }
             }
-            setStudents([newStudent, ...students])
+
+            setIsDialogOpen(false)
+            setFormData(emptyStudent)
+            refetch()
+        } catch (err) {
+            if (err instanceof AxiosError) {
+                setSaveError(err.response?.data?.mensaje ?? "Error al guardar estudiante")
+            } else {
+                setSaveError("Error inesperado")
+            }
+        } finally {
+            setSaving(false)
         }
-        setIsDialogOpen(false)
-        setFormData(emptyStudent)
     }
 
-    const handleViewStudent = (studentId: string) => {
-        navigate(`/dashboard/admin/estudiantes/${studentId}`)
+    const handleDesactivar = async (studentId: number) => {
+        try {
+            await alumnosService.desactivar(studentId)
+            refetch()
+        } catch (err) {
+            console.error("Error al desactivar estudiante:", err)
+        }
     }
 
-    const handleToggleStatus = (studentId: string) => {
-        setStudents(students.map((s) =>
-            s.id === studentId ? { ...s, status: s.status === "active" ? "inactive" : "active" } : s
-        ))
+    if (isLoading) {
+        return (
+            <div className="p-6 flex items-center justify-center min-h-100">
+                <Loader2 className="h-8 w-8 animate-spin text-[#1E3A5F]" />
+            </div>
+        )
     }
 
-    const handleDelete = (studentId: string) => {
-        setStudents(students.filter((s) => s.id !== studentId))
+    if (error) {
+        return (
+            <div className="p-6">
+                <div className="p-4 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+                    {error}
+                    <Button variant="link" onClick={refetch} className="ml-2 text-red-700 underline p-0 h-auto">
+                        Reintentar
+                    </Button>
+                </div>
+            </div>
+        )
     }
-
 
     return (
     <div className="p-6 space-y-6">
@@ -219,12 +213,12 @@ export function AdminStudents() {
             <StatsCard
                 icon={Users}
                 title="Total estudiantes"
-                value={students.length}
+                value={allStudents.length}
                 color="yellow"
                 subtitle={
                     <StatusBadge
-                        active={students.filter((s) => s.status === "active").length}
-                        inactive={students.filter((s) => s.status === "inactive").length}
+                        active={allStudents.filter((s) => s.estado === "ACTIVO").length}
+                        inactive={allStudents.filter((s) => s.estado === "INACTIVO").length}
                     />
                 }
             />
@@ -232,26 +226,26 @@ export function AdminStudents() {
             <StatsCard
                 icon={GraduationCap}
                 title="Grados con estudiantes"
-                value={new Set(students.map((s) => s.grade)).size}
+                value={new Set(allStudents.map((s) => s.grado)).size}
                 color="blue"
             />
 
             <StatsCard
-                icon={Ear}
-                title="Hipoacusia severa/profunda"
-                value={students.filter((s) => s.hearingLevel.includes("severa") || s.hearingLevel.includes("profunda")).length}
-                color="purple"
+                icon={UserCheck}
+                title="Con docente asignado"
+                value={allStudents.filter((s) => s.docentes.length > 0).length}
+                color="green"
             />
 
             <StatsCard
                 icon={UserCheck}
-                title="Docentes asignados"
-                value={new Set(students.map((s) => s.docenteId)).size}
-                color="green"
+                title="Con padre/tutor"
+                value={allStudents.filter((s) => s.padres.length > 0).length}
+                color="purple"
             />
         </div>
 
-        {/* Filtros para los registros */}
+        {/* Filtros */}
         <SearchFilterBar
             search={search}
             onSearchChange={setSearch}
@@ -266,7 +260,7 @@ export function AdminStudents() {
                 label: "Estado",
                 value: "status",
                 selectItem: "Todos",
-                options: ["Activos", "Inactivos"]
+                options: ["ACTIVO", "INACTIVO"]
             }
             ]}
             filterValues={{
@@ -279,13 +273,11 @@ export function AdminStudents() {
             }}
         />
 
-            {/* Tabla con los registros de cada estudiante */}
+            {/* Tabla */}
             <StudentsTable
                 students={filteredStudents}
                 onEdit={handleOpenEdit}
-                onToggleStatus={handleToggleStatus}
-                onDelete={handleDelete}
-                onView={handleViewStudent}
+                onDesactivar={handleDesactivar}
             />
 
             {/* Create/Edit Dialog */}
@@ -295,14 +287,16 @@ export function AdminStudents() {
                 formData={formData}
                 onChange={setFormData}
                 onSave={handleSave}
+                saving={saving}
+                saveError={saveError}
                 onCancel={() => {
                     setIsDialogOpen(false)
                     setEditingStudent(null)
                     setFormData(emptyStudent)
+                    setSaveError(null)
                 }}
                 grades={grades}
                 sections={sections}
-                hearingLevels={hearingLevels}
                 availableTeachers={availableTeachers}
                 availableParents={availableParents}
             />

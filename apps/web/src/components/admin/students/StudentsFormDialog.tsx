@@ -3,17 +3,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
-
-interface StudentFormData {
-    name: string
-    grade: string
-    section: string
-    hearingLevel: string
-    docenteId: string
-    padreId: string
-    notes: string
-}
+import type { StudentFormData } from "@/types/student"
+import type { UsuarioSimpleResponse } from "@/types/api"
 
 interface StudentFormDialogProps {
     open: boolean
@@ -22,11 +13,12 @@ interface StudentFormDialogProps {
     onChange: (data: StudentFormData) => void
     onSave: () => void
     onCancel: () => void
+    saving?: boolean
+    saveError?: string | null
     grades: string[]
     sections: string[]
-    hearingLevels: string[]
-    availableTeachers: { id: string; name: string }[]
-    availableParents: { id: string; name: string }[]
+    availableTeachers: UsuarioSimpleResponse[]
+    availableParents: UsuarioSimpleResponse[]
 }
 
 export function StudentFormDialog({
@@ -36,9 +28,10 @@ export function StudentFormDialog({
     onChange,
     onSave,
     onCancel,
+    saving = false,
+    saveError = null,
     grades,
     sections,
-    hearingLevels,
     availableTeachers,
     availableParents
 }: StudentFormDialogProps) {
@@ -52,27 +45,54 @@ export function StudentFormDialog({
                 </DialogHeader>
 
                 <div className="space-y-4 pt-2 max-h-[70vh] overflow-y-auto">
-                    {/* Nombre completo */}
-                    <div className="space-y-1.5">
-                        <Label htmlFor="name" className="text-sm text-[#374151]">
-                            Nombre completo
-                        </Label>
-                        <Input
-                            id="name"
-                            value={formData.name}
-                            onChange={(e) => onChange({ ...formData, name: e.target.value })}
-                            placeholder="Ej: Sofía Rodríguez"
-                            className="border-[#E5E7EB]"
-                        />
+                    {/* Nombre y Apellido */}
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                            <Label htmlFor="nombre" className="text-sm text-[#374151]">
+                                Nombre
+                            </Label>
+                            <Input
+                                id="nombre"
+                                value={formData.nombre}
+                                onChange={(e) => onChange({ ...formData, nombre: e.target.value })}
+                                placeholder="Ej: Sofía"
+                                className="border-[#E5E7EB]"
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="apellido" className="text-sm text-[#374151]">
+                                Apellido
+                            </Label>
+                            <Input
+                                id="apellido"
+                                value={formData.apellido}
+                                onChange={(e) => onChange({ ...formData, apellido: e.target.value })}
+                                placeholder="Ej: Rodríguez"
+                                className="border-[#E5E7EB]"
+                            />
+                        </div>
                     </div>
 
-                    {/* Grado, Sección, Nivel auditivo */}
+                    {/* Fecha de nacimiento, Grado, Sección */}
                     <div className="grid grid-cols-3 gap-3">
+                        <div className="space-y-1.5">
+                            <Label htmlFor="fechaNacimiento" className="text-sm text-[#374151]">
+                                Fecha de nacimiento
+                            </Label>
+                            <Input
+                                id="fechaNacimiento"
+                                type="date"
+                                value={formData.fechaNacimiento}
+                                onChange={(e) => onChange({ ...formData, fechaNacimiento: e.target.value })}
+                                className="border-[#E5E7EB]"
+                            />
+                        </div>
+
                         <div className="space-y-1.5">
                             <Label className="text-sm text-[#374151]">Grado</Label>
                             <Select
-                                value={formData.grade}
-                                onValueChange={(value) => onChange({ ...formData, grade: value })}
+                                value={formData.grado}
+                                onValueChange={(value) => onChange({ ...formData, grado: value })}
                             >
                                 <SelectTrigger className="border-[#E5E7EB]">
                                     <SelectValue placeholder="Seleccionar" />
@@ -90,8 +110,8 @@ export function StudentFormDialog({
                         <div className="space-y-1.5">
                             <Label className="text-sm text-[#374151]">Sección</Label>
                             <Select
-                                value={formData.section}
-                                onValueChange={(value) => onChange({ ...formData, section: value })}
+                                value={formData.seccion}
+                                onValueChange={(value) => onChange({ ...formData, seccion: value })}
                             >
                                 <SelectTrigger className="border-[#E5E7EB]">
                                     <SelectValue placeholder="Seleccionar" />
@@ -100,25 +120,6 @@ export function StudentFormDialog({
                                     {sections.map((section) => (
                                         <SelectItem key={section} value={section}>
                                             {section}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        <div className="space-y-1.5">
-                            <Label className="text-sm text-[#374151]">Nivel auditivo</Label>
-                            <Select
-                                value={formData.hearingLevel}
-                                onValueChange={(value) => onChange({ ...formData, hearingLevel: value })}
-                            >
-                                <SelectTrigger className="border-[#E5E7EB]">
-                                    <SelectValue placeholder="Seleccionar" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {hearingLevels.map((level) => (
-                                        <SelectItem key={level} value={level}>
-                                            {level}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -139,8 +140,8 @@ export function StudentFormDialog({
                                 </SelectTrigger>
                                 <SelectContent>
                                     {availableTeachers.map((docente) => (
-                                        <SelectItem key={docente.id} value={docente.id}>
-                                            {docente.name}
+                                        <SelectItem key={docente.id} value={String(docente.id)}>
+                                            {docente.nombre} {docente.apellido}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -158,8 +159,8 @@ export function StudentFormDialog({
                                 </SelectTrigger>
                                 <SelectContent>
                                     {availableParents.map((padre) => (
-                                        <SelectItem key={padre.id} value={padre.id}>
-                                            {padre.name}
+                                        <SelectItem key={padre.id} value={String(padre.id)}>
+                                            {padre.nombre} {padre.apellido}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -167,19 +168,12 @@ export function StudentFormDialog({
                         </div>
                     </div>
 
-                    {/* Notas adicionales */}
-                    <div className="space-y-1.5">
-                        <Label htmlFor="notes" className="text-sm text-[#374151]">
-                            Notas adicionales (opcional)
-                        </Label>
-                        <Textarea
-                            id="notes"
-                            value={formData.notes}
-                            onChange={(e) => onChange({ ...formData, notes: e.target.value })}
-                            placeholder="Información adicional del estudiante..."
-                            className="border-[#E5E7EB] resize-none h-20"
-                        />
-                    </div>
+                    {/* Error de guardado */}
+                    {saveError && (
+                        <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+                            {saveError}
+                        </div>
+                    )}
 
                     {/* Botones de acción */}
                     <div className="flex justify-end gap-2 pt-2">
@@ -192,9 +186,10 @@ export function StudentFormDialog({
                         </Button>
                         <Button
                             onClick={onSave}
+                            disabled={saving}
                             className="bg-[#1E3A5F] hover:bg-[#2D4A6F] text-white"
                         >
-                            {isEditing ? "Guardar cambios" : "Crear estudiante"}
+                            {saving ? "Guardando..." : isEditing ? "Guardar cambios" : "Crear estudiante"}
                         </Button>
                     </div>
                 </div>

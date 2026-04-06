@@ -1,13 +1,23 @@
+import type { EstadoAlumno, UsuarioSimpleResponse } from './api'
+
 export interface Student {
-  id: string
-  name: string
-  grade: string
-  section: string
-  hearingLevel: string
-  docente: string
+  id: number
+  nombre: string
+  apellido: string
+  fechaNacimiento: string
+  grado: string
+  seccion: string
+  estado: EstadoAlumno
+  docentes: UsuarioSimpleResponse[]
+  padres: UsuarioSimpleResponse[]
+}
+
+export interface StudentFormData {
+  nombre: string
+  apellido: string
+  fechaNacimiento: string
+  grado: string
+  seccion: string
   docenteId: string
-  padre: string
   padreId: string
-  status: "active" | "inactive"
-  createdAt: string
 }

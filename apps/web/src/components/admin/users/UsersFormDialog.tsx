@@ -14,6 +14,7 @@ interface UserFormDialogProps {
   onSave: () => void
   onCancel: () => void
   saving?: boolean
+  saveError?: string | null
 }
 
 export function UserFormDialog({
@@ -24,6 +25,7 @@ export function UserFormDialog({
   onSave,
   onCancel,
   saving = false,
+  saveError = null,
 }: UserFormDialogProps) {
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onCancel()}>
@@ -124,6 +126,13 @@ export function UserFormDialog({
               />
             </div>
           </div>
+
+          {/* Error de guardado */}
+          {saveError && (
+            <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+              {saveError}
+            </div>
+          )}
 
           {/* Botones */}
           <div className="flex justify-end gap-2 pt-2">

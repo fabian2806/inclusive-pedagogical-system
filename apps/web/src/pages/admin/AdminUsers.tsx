@@ -231,6 +231,7 @@ export default function UsuariosPage() {
                 onChange={setFormData}
                 onSave={handleSave}
                 saving={saving}
+                saveError={saveError}
                 onCancel={() => {
                     setIsDialogOpen(false)
                     setEditingUser(null)
@@ -239,12 +240,6 @@ export default function UsuariosPage() {
                 }}
             />
 
-            {/* Error de guardado */}
-            {saveError && (
-                <div className="fixed bottom-4 right-4 p-4 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700 shadow-lg">
-                    {saveError}
-                </div>
-            )}
         </div>
     )
 }
