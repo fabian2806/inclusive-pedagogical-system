@@ -1,0 +1,5 @@
+export { default as apiClient } from './client'
+export { authService } from './authService'
+export { usuariosService } from './usuariosService'
+export { alumnosService } from './alumnosService'
+export { tiposDocumentoService } from './tiposDocumentoService'
