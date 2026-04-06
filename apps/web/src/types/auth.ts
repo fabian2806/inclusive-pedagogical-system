@@ -1,16 +1,18 @@
 export type UserRole = 'docente' | 'padre' | 'saanee' | 'admin'
 
 export interface User {
-  id: string
-  email: string
+  id: number
   nombre: string
+  apellido: string
+  correo: string
+  telefono: string | null
   rol: UserRole
-  telefono?: string
 }
 
 export interface AuthContextType {
   user: User | null
   isAuthenticated: boolean
-  login: (email: string, password: string) => Promise<void>
+  isLoading: boolean
+  login: (correo: string, password: string) => Promise<void>
   logout: () => void
 }

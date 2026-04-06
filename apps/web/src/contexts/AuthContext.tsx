@@ -1,76 +1,67 @@
-//src/contexts/AuthContext.tsx
-
-import { createContext, useState, useCallback, type ReactNode } from 'react'
-import { type User, type AuthContextType } from '@/types/auth'
+import { createContext, useState, useCallback, useEffect, type ReactNode } from 'react'
+import { type User, type UserRole, type AuthContextType } from '@/types/auth'
+import { authService } from '@/lib/api'
+import type { UsuarioResponse } from '@/types/api'
+import { AxiosError } from 'axios'
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-// Mock users para desarrollo
-const MOCK_USERS: Record<string, { password: string; user: User }> = {
-  'docente@signaedu.pe': {
-    password: 'docente123',
-    user: {
-      id: '1',
-      email: 'docente@signaedu.pe',
-      nombre: 'María Elena Castro',
-      rol: 'docente',
-      telefono: '999 000 000'
-    }
-  },
-  'padre@signaedu.pe': {
-    password: 'padre123',
-    user: {
-      id: '2',
-      email: 'padre@signaedu.pe',
-      nombre: 'Juan López',
-      rol: 'padre',
-      telefono: '999 000 000'
-    }
-  },
-  'saanee@signaedu.pe': {
-    password: 'saanee123',
-    user: {
-      id: '3',
-      email: 'saanee@signaedu.pe',
-      nombre: 'Carlos Rodríguez',
-      rol: 'saanee',
-      telefono: '999 000 000'
-    }
-  },
-  'admin@signaedu.pe': {
-    password: 'admin123',
-    user: {
-      id: '4',
-      email: 'admin@signaedu.pe',
-      nombre: 'Administrador',
-      rol: 'admin',
-      telefono: '999 000 000'
-    }
+// Mapea el UsuarioResponse del backend al User del frontend
+function mapUsuarioToUser(usuario: UsuarioResponse): User {
+  return {
+    id: usuario.id,
+    nombre: usuario.nombre,
+    apellido: usuario.apellido,
+    correo: usuario.correo,
+    telefono: usuario.telefono,
+    rol: usuario.roles[0].toLowerCase() as UserRole,
   }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(() => {
-    const stored = localStorage.getItem('user')
-    return stored ? JSON.parse(stored) : null
-  })
+  const [user, setUser] = useState<User | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
-  const login = useCallback(async (email: string, password: string) => {
-    // Simular delay de red
-    await new Promise(resolve => setTimeout(resolve, 500))
-
-    const mockUser = MOCK_USERS[email]
-    if (!mockUser || mockUser.password !== password) {
-      throw new Error('Credenciales inválidas')
+  // Al montar, verificar si hay un token válido en localStorage
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken')
+    if (!token) {
+      setIsLoading(false)
+      return
     }
 
-    setUser(mockUser.user)
-    localStorage.setItem('user', JSON.stringify(mockUser.user))
+    authService.getMe()
+      .then((usuario) => {
+        setUser(mapUsuarioToUser(usuario))
+      })
+      .catch(() => {
+        localStorage.removeItem('accessToken')
+        setUser(null)
+      })
+      .finally(() => {
+        setIsLoading(false)
+      })
+  }, [])
+
+  const login = useCallback(async (correo: string, password: string) => {
+    try {
+      const { accessToken } = await authService.login({ correo, password })
+      localStorage.setItem('accessToken', accessToken)
+
+      const usuario = await authService.getMe()
+      setUser(mapUsuarioToUser(usuario))
+    } catch (err) {
+      localStorage.removeItem('accessToken')
+      if (err instanceof AxiosError) {
+        throw new Error(err.response?.data?.mensaje ?? 'Error al iniciar sesión')
+      }
+      throw err
+    }
   }, [])
 
   const logout = useCallback(() => {
     setUser(null)
-    localStorage.removeItem('user')
+    localStorage.removeItem('accessToken')
   }, [])
 
   return (
@@ -78,8 +69,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         isAuthenticated: !!user,
+        isLoading,
         login,
-        logout
+        logout,
       }}
     >
       {children}

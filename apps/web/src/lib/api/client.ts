@@ -20,9 +20,13 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const status = error.response?.status
+    const url = error.config?.url
+
+    if (status === 401 && url !== '/auth/login') {
       localStorage.removeItem('accessToken')
       localStorage.removeItem('user')
+      console.log("Redirigiendo a /login...")
       window.location.href = '/login'
     }
     return Promise.reject(error)
