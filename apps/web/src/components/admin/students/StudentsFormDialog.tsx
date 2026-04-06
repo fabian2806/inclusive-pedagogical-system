@@ -186,7 +186,14 @@ export function StudentFormDialog({
                         </Button>
                         <Button
                             onClick={onSave}
-                            disabled={saving}
+                            disabled={
+                                saving ||
+                                !formData.nombre.trim() ||
+                                !formData.apellido.trim() ||
+                                !formData.fechaNacimiento ||
+                                !formData.grado ||
+                                !formData.seccion
+                            }
                             className="bg-[#1E3A5F] hover:bg-[#2D4A6F] text-white"
                         >
                             {saving ? "Guardando..." : isEditing ? "Guardar cambios" : "Crear estudiante"}

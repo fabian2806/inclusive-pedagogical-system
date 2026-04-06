@@ -145,7 +145,13 @@ export function UserFormDialog({
             </Button>
             <Button
               onClick={onSave}
-              disabled={saving}
+              disabled={
+                saving ||
+                !formData.nombre.trim() ||
+                !formData.apellido.trim() ||
+                !formData.correo.trim() ||
+                (!isEditing && !formData.password.trim())
+              }
               className="bg-[#1E3A5F] hover:bg-[#2D4A6F] text-white"
             >
               {saving ? "Guardando..." : isEditing ? "Guardar cambios" : "Crear usuario"}
