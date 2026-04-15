@@ -16,6 +16,7 @@ const menuConfig: Record<UserRole, { title: string; url: string; icon: typeof La
         { title: "Tipos Documento", url: "/dashboard/admin/tipos-documento", icon: FolderCog },
         { title: "Eventos", url: "/dashboard/admin/eventos", icon: Calendar },
         { title: "Reportes", url: "/dashboard/admin/reportes", icon: BarChart3 },
+        { title: "Configuración", url: "/dashboard/admin/configuracion", icon: Settings }
     ],
     docente: [
         { title: "Inicio", url: "/dashboard", icon: LayoutDashboard },

@@ -7,7 +7,8 @@ import { ProtectedRoute } from '@/components/ProtectedRoute'
 import DashboardLayout from '@/pages/DashboardLayout'
 import { AdminStudents } from '@/pages/admin/AdminStudents'
 import AdminUsers from '@/pages/admin/AdminUsers'
-import AdminDocuments from './pages/admin/AdminDocuments'
+import AdminDocuments from '@/pages/admin/AdminDocuments'
+import AdminConfig from '@/pages/admin/AdminConfig'
 
 function App() {
   return (
@@ -22,6 +23,8 @@ function App() {
 
           <Route path="/dashboard" element={<ProtectedRoute> <DashboardLayout /> </ProtectedRoute>}>
             <Route index element={<Dashboard />} />
+            <Route path='estudiantes' element={<div>Probando estudiantes</div>} />
+
 
             <Route path='admin'>
               <Route path='usuarios' element={<AdminUsers />} />
@@ -29,8 +32,9 @@ function App() {
               <Route path='tipos-documento' element={<AdminDocuments />} />
               <Route path='eventos' element={<div>Admin - Eventos</div>} />
               <Route path='reportes' element={<div>Admin - Reportes</div>} />
-            </Route>
 
+              <Route path='configuracion' element={<AdminConfig />} />
+            </Route>
           </Route>
 
 
