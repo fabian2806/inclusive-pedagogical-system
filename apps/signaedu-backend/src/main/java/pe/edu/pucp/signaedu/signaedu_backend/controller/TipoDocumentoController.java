@@ -16,7 +16,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/admin/tipos-documento")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAuthority('TIPO_DOCUMENTO_GESTIONAR')")
 public class TipoDocumentoController {
 
     private final TipoDocumentoService tipoDocumentoService;

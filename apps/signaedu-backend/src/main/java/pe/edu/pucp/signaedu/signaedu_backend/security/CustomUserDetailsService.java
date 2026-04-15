@@ -27,6 +27,12 @@ public class CustomUserDetailsService implements UserDetailsService {
                 .map(rol -> new SimpleGrantedAuthority("ROLE_" + rol.getNombre().name()))
                 .collect(Collectors.toSet());
 
+        // Cargar permisos de cada rol como authorities adicionales
+        usuario.getRoles().stream()
+                .flatMap(rol -> rol.getPermisos().stream())
+                .map(permiso -> new SimpleGrantedAuthority(permiso.getNombre()))
+                .forEach(authorities::add);
+
         return new User(usuario.getCorreo(), usuario.getPasswordHash(), authorities);
     }
 }

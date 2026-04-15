@@ -16,27 +16,30 @@ import java.util.List;
 @RestController
 @RequestMapping("/admin/alumnos")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ADMIN')")
 public class AlumnoController {
 
     private final AlumnoService alumnoService;
 
     @PostMapping
+    @PreAuthorize("hasAuthority('ALUMNO_CREAR')")
     public ResponseEntity<AlumnoResponse> crearAlumno(@Valid @RequestBody AlumnoCreateRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(alumnoService.crearAlumno(request));
     }
 
     @GetMapping
+    @PreAuthorize("hasAuthority('ALUMNO_LEER')")
     public ResponseEntity<List<AlumnoResponse>> listarAlumnos() {
         return ResponseEntity.ok(alumnoService.listarAlumnos());
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('ALUMNO_LEER')")
     public ResponseEntity<AlumnoResponse> obtenerAlumno(@PathVariable Long id) {
         return ResponseEntity.ok(alumnoService.obtenerAlumnoPorId(id));
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('ALUMNO_ACTUALIZAR')")
     public ResponseEntity<AlumnoResponse> actualizarAlumno(
             @PathVariable Long id,
             @Valid @RequestBody AlumnoUpdateRequest request) {
@@ -44,12 +47,14 @@ public class AlumnoController {
     }
 
     @PatchMapping("/{id}/desactivar")
+    @PreAuthorize("hasAuthority('ALUMNO_DESACTIVAR')")
     public ResponseEntity<Void> desactivarAlumno(@PathVariable Long id) {
         alumnoService.desactivarAlumno(id);
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/docentes/{docenteId}")
+    @PreAuthorize("hasAuthority('ALUMNO_ACTUALIZAR')")
     public ResponseEntity<AlumnoResponse> asignarDocente(
             @PathVariable Long id,
             @PathVariable Long docenteId) {
@@ -57,6 +62,7 @@ public class AlumnoController {
     }
 
     @DeleteMapping("/{id}/docentes/{docenteId}")
+    @PreAuthorize("hasAuthority('ALUMNO_ACTUALIZAR')")
     public ResponseEntity<AlumnoResponse> removerDocente(
             @PathVariable Long id,
             @PathVariable Long docenteId) {
@@ -64,6 +70,7 @@ public class AlumnoController {
     }
 
     @PostMapping("/{id}/padres/{padreId}")
+    @PreAuthorize("hasAuthority('ALUMNO_ACTUALIZAR')")
     public ResponseEntity<AlumnoResponse> asignarPadre(
             @PathVariable Long id,
             @PathVariable Long padreId) {
@@ -71,6 +78,7 @@ public class AlumnoController {
     }
 
     @DeleteMapping("/{id}/padres/{padreId}")
+    @PreAuthorize("hasAuthority('ALUMNO_ACTUALIZAR')")
     public ResponseEntity<AlumnoResponse> removerPadre(
             @PathVariable Long id,
             @PathVariable Long padreId) {
