@@ -135,7 +135,7 @@ export function StudentCard({
               Ver perfil
             </Button>
           </Link>
-          <Link to={`/dashboard/estudiantes/${id}/bitacora`} className="flex-1">
+          <Link to={`/dashboard/estudiantes/${id}/expediente`} className="flex-1">
             <Button
               variant="outline"
               size="sm"

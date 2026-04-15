@@ -10,6 +10,7 @@ import AdminUsers from '@/pages/admin/AdminUsers'
 import AdminDocuments from '@/pages/admin/AdminDocuments'
 import AdminConfig from '@/pages/admin/AdminConfig'
 import Students from '@/pages/Students'
+import StudentProfile from '@/pages/StudentProfile'
 
 function App() {
   return (
@@ -27,8 +28,8 @@ function App() {
 
             <Route path='estudiantes'>
               <Route index element={<Students />} />
-              <Route path=':id/perfil' element={<div>Perfil del estudiante (ID dinámico)</div>} />
-              <Route path=':id/bitacora' element={<div>Bitácora del estudiante (ID dinámico)</div>} />
+              <Route path=':id/perfil' element={<StudentProfile />} />
+              <Route path=':id/expediente' element={<div>Expediente del estudiante (ID dinámico)</div>} />
             </Route>
 
             <Route path='admin'>
