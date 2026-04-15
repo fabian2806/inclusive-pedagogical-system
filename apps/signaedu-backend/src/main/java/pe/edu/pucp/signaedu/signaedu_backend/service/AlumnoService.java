@@ -11,11 +11,14 @@ import pe.edu.pucp.signaedu.signaedu_backend.exception.ResourceNotFoundException
 import pe.edu.pucp.signaedu.signaedu_backend.mapper.AlumnoMapper;
 import pe.edu.pucp.signaedu.signaedu_backend.model.Alumno;
 import pe.edu.pucp.signaedu.signaedu_backend.model.Usuario;
+import pe.edu.pucp.signaedu.signaedu_backend.model.Expediente;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.EstadoAlumno;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.TipoRol;
 import pe.edu.pucp.signaedu.signaedu_backend.repository.AlumnoRepository;
+import pe.edu.pucp.signaedu.signaedu_backend.repository.ExpedienteRepository;
 import pe.edu.pucp.signaedu.signaedu_backend.repository.UsuarioRepository;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -24,12 +27,25 @@ public class AlumnoService {
 
     private final AlumnoRepository alumnoRepository;
     private final UsuarioRepository usuarioRepository;
+    private final ExpedienteRepository expedienteRepository;
+    private final ConfiguracionService configuracionService;
     private final AlumnoMapper alumnoMapper;
 
     @Transactional
     public AlumnoResponse crearAlumno(AlumnoCreateRequest request) {
         Alumno alumno = alumnoMapper.toEntity(request);
-        return alumnoMapper.toResponse(alumnoRepository.save(alumno));
+        alumno = alumnoRepository.save(alumno);
+
+        // Crear expediente vacío para el periodo lectivo vigente
+        String periodo = configuracionService.obtenerValorPeriodo();
+        Expediente expediente = Expediente.builder()
+                .alumno(alumno)
+                .fechaApertura(LocalDate.now())
+                .periodoLectivo(periodo)
+                .build();
+        expedienteRepository.save(expediente);
+
+        return alumnoMapper.toResponse(alumno);
     }
 
     @Transactional(readOnly = true)
