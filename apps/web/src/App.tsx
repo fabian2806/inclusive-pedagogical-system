@@ -9,6 +9,7 @@ import { AdminStudents } from '@/pages/admin/AdminStudents'
 import AdminUsers from '@/pages/admin/AdminUsers'
 import AdminDocuments from '@/pages/admin/AdminDocuments'
 import AdminConfig from '@/pages/admin/AdminConfig'
+import Students from '@/pages/Students'
 
 function App() {
   return (
@@ -23,8 +24,12 @@ function App() {
 
           <Route path="/dashboard" element={<ProtectedRoute> <DashboardLayout /> </ProtectedRoute>}>
             <Route index element={<Dashboard />} />
-            <Route path='estudiantes' element={<div>Probando estudiantes</div>} />
 
+            <Route path='estudiantes'>
+              <Route index element={<Students />} />
+              <Route path=':id/perfil' element={<div>Perfil del estudiante (ID dinámico)</div>} />
+              <Route path=':id/bitacora' element={<div>Bitácora del estudiante (ID dinámico)</div>} />
+            </Route>
 
             <Route path='admin'>
               <Route path='usuarios' element={<AdminUsers />} />
