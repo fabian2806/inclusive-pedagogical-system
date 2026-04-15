@@ -33,6 +33,8 @@ function App() {
               <Route path=':id/expediente' element={<StudentRecord />} />
             </Route>
 
+            <Route path='indicadores' element={<div>Indicadores</div>} />
+
             <Route path='admin'>
               <Route path='usuarios' element={<AdminUsers />} />
               <Route path='estudiantes' element={<AdminStudents />} />

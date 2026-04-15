@@ -1,7 +1,7 @@
 import { useAuth } from "@/hooks/useAuth";
 import type { UserRole } from "@/types/auth";
 import { getRoleDisplayName, getRoleColor } from "@/lib/roles"
-import { BarChart3, Calendar, FileText, FolderCog, GraduationCap, LayoutDashboard, LogOut, MessageSquare, Settings, Shield, UserCog, Users } from "lucide-react";
+import { BarChart3, Calendar, FileText, FolderCog, GraduationCap, LayoutDashboard, LogOut, MessageSquare, Settings, Shield, Target, UserCog, Users } from "lucide-react";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, 
     SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarSeparator } from "@/components/ui/sidebar"
 import { Link, useLocation } from "react-router-dom";
@@ -21,6 +21,7 @@ const menuConfig: Record<UserRole, { title: string; url: string; icon: typeof La
     docente: [
         { title: "Inicio", url: "/dashboard", icon: LayoutDashboard },
         { title: "Estudiantes", url: "/dashboard/estudiantes", icon: Users },
+        { title: "Indicadores", url: "/dashboard/indicadores", icon: Target },
         { title: "Eventos", url: "/dashboard/eventos", icon: Calendar },
         { title: "Informes", url: "/dashboard/informes", icon: FileText },
     ],
