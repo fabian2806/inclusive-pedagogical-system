@@ -12,6 +12,7 @@ import AdminConfig from '@/pages/admin/AdminConfig'
 import Students from '@/pages/Students'
 import StudentProfile from '@/pages/StudentProfile'
 import StudentRecord from './pages/StudentRecord'
+import Indicators from './pages/Indicators'
 
 function App() {
   return (
@@ -33,7 +34,7 @@ function App() {
               <Route path=':id/expediente' element={<StudentRecord />} />
             </Route>
 
-            <Route path='indicadores' element={<div>Indicadores</div>} />
+            <Route path='indicadores' element={<Indicators />} />
 
             <Route path='admin'>
               <Route path='usuarios' element={<AdminUsers />} />
