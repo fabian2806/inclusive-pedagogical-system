@@ -11,6 +11,7 @@ import AdminDocuments from '@/pages/admin/AdminDocuments'
 import AdminConfig from '@/pages/admin/AdminConfig'
 import Students from '@/pages/Students'
 import StudentProfile from '@/pages/StudentProfile'
+import StudentRecord from './pages/StudentRecord'
 
 function App() {
   return (
@@ -29,7 +30,7 @@ function App() {
             <Route path='estudiantes'>
               <Route index element={<Students />} />
               <Route path=':id/perfil' element={<StudentProfile />} />
-              <Route path=':id/expediente' element={<div>Expediente del estudiante (ID dinámico)</div>} />
+              <Route path=':id/expediente' element={<StudentRecord />} />
             </Route>
 
             <Route path='admin'>
