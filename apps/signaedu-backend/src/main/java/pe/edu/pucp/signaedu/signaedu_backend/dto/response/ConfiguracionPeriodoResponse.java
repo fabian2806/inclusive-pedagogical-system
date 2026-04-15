@@ -13,4 +13,6 @@ import lombok.Setter;
 @Builder
 public class ConfiguracionPeriodoResponse {
     private String periodoLectivoVigente;
+    private boolean periodoAbierto;
+    private int expedientesActivos;
 }

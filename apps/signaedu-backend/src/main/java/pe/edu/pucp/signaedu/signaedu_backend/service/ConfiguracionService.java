@@ -35,9 +35,7 @@ public class ConfiguracionService {
         Configuracion config = configuracionRepository.findByClave(CLAVE_PERIODO)
                 .orElseThrow(() -> new ResourceNotFoundException("Configuracion", "clave", CLAVE_PERIODO));
 
-        return ConfiguracionPeriodoResponse.builder()
-                .periodoLectivoVigente(config.getValor())
-                .build();
+        return construirPeriodoResponse(config.getValor());
     }
 
     @Transactional
@@ -48,8 +46,17 @@ public class ConfiguracionService {
         config.setValor(nuevoPeriodo);
         configuracionRepository.save(config);
 
+        return construirPeriodoResponse(nuevoPeriodo);
+    }
+
+    private ConfiguracionPeriodoResponse construirPeriodoResponse(String periodo) {
+        List<Expediente> activos = expedienteRepository
+                .findByPeriodoLectivoAndEstado(periodo, EstadoExpediente.ACTIVO);
+
         return ConfiguracionPeriodoResponse.builder()
-                .periodoLectivoVigente(nuevoPeriodo)
+                .periodoLectivoVigente(periodo)
+                .periodoAbierto(!activos.isEmpty())
+                .expedientesActivos(activos.size())
                 .build();
     }
 
