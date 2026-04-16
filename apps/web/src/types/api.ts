@@ -118,3 +118,25 @@ export interface TipoDocumentoUpdateRequest {
   esPeriodico: boolean
   periodicidad?: string
 }
+
+// --- Configuración / Periodo Lectivo ---
+
+export interface ConfiguracionPeriodoResponse {
+  periodoLectivoVigente: string
+  periodoAbierto: boolean
+  expedientesActivos: number
+}
+
+export interface PeriodoLectivoRequest {
+  periodoLectivo: string
+}
+
+export interface AperturaPeriodoResponse {
+  periodoLectivo: string
+  expedientesCreados: number
+}
+
+export interface CierrePeriodoResponse {
+  periodoLectivo: string
+  expedientesCerrados: number
+}

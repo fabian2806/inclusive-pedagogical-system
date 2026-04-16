@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import {
   Settings,
   CalendarDays,
@@ -25,64 +25,120 @@ import {
 } from "@/components/ui/dialog"
 import { useAuth } from "@/hooks/useAuth"
 import { useNavigate } from "react-router-dom"
-
-// Mock data
-const ALUMNOS_ACTIVOS = 24
-const PERIODO_VIGENTE_INICIAL = "2025"
-
-type PeriodoEstado = "abierto" | "cerrado"
-
+import { useApiQuery } from "@/hooks/useApiQuery"
+import { configuracionService } from "@/lib/api/configuracionService"
+import { alumnosService } from "@/lib/api/alumnosService"
+import type { ErrorResponse } from "@/types/api"
+import { AxiosError } from "axios"
 
 export default function AdminConfig() {
   const { user } = useAuth()
   const navigate = useNavigate()
 
-    // Derigir a dashboard si el usuario no es admin (esto es solo para seguridad adicional, el sidebar ya oculta esta opcion a usuarios no admin)
-    useEffect(() => {
-        if (user?.rol !== "admin") {
-            navigate("/dashboard")
-        }
-    }, [user, navigate])
-
+  useEffect(() => {
     if (user?.rol !== "admin") {
-        return null
+      navigate("/dashboard")
     }
+  }, [user, navigate])
 
-  const [periodoVigente, setPeriodoVigente] = useState(PERIODO_VIGENTE_INICIAL)
-  const [periodoInput, setPeriodoInput] = useState(PERIODO_VIGENTE_INICIAL)
-  const [periodoEstado, setPeriodoEstado] = useState<PeriodoEstado>("abierto")
+  if (user?.rol !== "admin") {
+    return null
+  }
+
+  // Cargar periodo vigente y alumnos activos
+  const fetchPeriodo = useCallback(() => configuracionService.obtenerPeriodoVigente(), [])
+  const fetchAlumnos = useCallback(() => alumnosService.listar(), [])
+  const { data: periodoData, isLoading: loadingPeriodo, refetch: refetchPeriodo } = useApiQuery(fetchPeriodo)
+  const { data: alumnos, isLoading: loadingAlumnos } = useApiQuery(fetchAlumnos)
+
+  const alumnosActivos = alumnos?.filter(a => a.estado === "ACTIVO").length ?? 0
+
+  const [periodoInput, setPeriodoInput] = useState("")
   const [savedMessage, setSavedMessage] = useState(false)
+  const [loadingSave, setLoadingSave] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   // Dialog states
   const [dialogApertura, setDialogApertura] = useState(false)
   const [dialogCierre, setDialogCierre] = useState(false)
   const [loadingApertura, setLoadingApertura] = useState(false)
   const [loadingCierre, setLoadingCierre] = useState(false)
+  const [resultadoApertura, setResultadoApertura] = useState<number | null>(null)
+  const [resultadoCierre, setResultadoCierre] = useState<number | null>(null)
 
-  const handleGuardarPeriodo = () => {
+  // Sincronizar estado cuando se carga el periodo
+  useEffect(() => {
+    if (periodoData) {
+      setPeriodoInput(periodoData.periodoLectivoVigente)
+    }
+  }, [periodoData])
+
+  const periodoVigente = periodoData?.periodoLectivoVigente ?? ""
+  const periodoAbierto = periodoData?.periodoAbierto ?? false
+  const expedientesActivos = periodoData?.expedientesActivos ?? 0
+
+  const extraerError = (err: unknown): string => {
+    if (err instanceof AxiosError) {
+      const apiError = err.response?.data as ErrorResponse | undefined
+      return apiError?.mensaje ?? err.message
+    }
+    return "Error inesperado"
+  }
+
+  const handleGuardarPeriodo = async () => {
     if (!periodoInput || periodoInput.length !== 4) return
-    setPeriodoVigente(periodoInput)
-    setSavedMessage(true)
-    setTimeout(() => setSavedMessage(false), 3000)
+    setLoadingSave(true)
+    setErrorMessage(null)
+    try {
+      await configuracionService.actualizarPeriodoVigente({ periodoLectivo: periodoInput })
+      refetchPeriodo()
+      setSavedMessage(true)
+      setTimeout(() => setSavedMessage(false), 3000)
+    } catch (err) {
+      setErrorMessage(extraerError(err))
+    } finally {
+      setLoadingSave(false)
+    }
   }
 
-  const handleAperturar = () => {
+  const handleAperturar = async () => {
     setLoadingApertura(true)
-    setTimeout(() => {
-      setPeriodoEstado("abierto")
-      setPeriodoVigente(periodoInput)
-      setLoadingApertura(false)
+    setErrorMessage(null)
+    try {
+      const resultado = await configuracionService.aperturarPeriodo()
+      setResultadoApertura(resultado.expedientesCreados)
+      refetchPeriodo()
       setDialogApertura(false)
-    }, 1500)
+    } catch (err) {
+      setErrorMessage(extraerError(err))
+      setDialogApertura(false)
+    } finally {
+      setLoadingApertura(false)
+    }
   }
 
-  const handleCerrar = () => {
+  const handleCerrar = async () => {
     setLoadingCierre(true)
-    setTimeout(() => {
-      setPeriodoEstado("cerrado")
-      setLoadingCierre(false)
+    setErrorMessage(null)
+    try {
+      const resultado = await configuracionService.cerrarPeriodo()
+      setResultadoCierre(resultado.expedientesCerrados)
+      refetchPeriodo()
       setDialogCierre(false)
-    }, 1500)
+    } catch (err) {
+      setErrorMessage(extraerError(err))
+      setDialogCierre(false)
+    } finally {
+      setLoadingCierre(false)
+    }
+  }
+
+  if (loadingPeriodo || loadingAlumnos) {
+    return (
+      <div className="p-6 flex items-center justify-center">
+        <p className="text-[#6B7280]">Cargando configuración...</p>
+      </div>
+    )
   }
 
   return (
@@ -97,6 +153,34 @@ export default function AdminConfig() {
           <p className="text-sm text-[#6B7280]">Gestiona los parametros generales del sistema</p>
         </div>
       </div>
+
+      {/* Mensaje de error */}
+      {errorMessage && (
+        <div className="flex items-start gap-2 p-3 rounded-lg bg-[#FEF2F2] border border-[#FCA5A5]">
+          <AlertTriangle size={15} className="text-[#DC2626] mt-0.5 shrink-0" />
+          <p className="text-xs text-[#991B1B]">{errorMessage}</p>
+        </div>
+      )}
+
+      {/* Resultado apertura */}
+      {resultadoApertura !== null && (
+        <div className="flex items-start gap-2 p-3 rounded-lg bg-[#ECFDF5] border border-[#A7F3D0]">
+          <CheckCircle size={15} className="text-[#059669] mt-0.5 shrink-0" />
+          <p className="text-xs text-[#065F46]">
+            Periodo aperturado. Se crearon <span className="font-semibold">{resultadoApertura}</span> expedientes.
+          </p>
+        </div>
+      )}
+
+      {/* Resultado cierre */}
+      {resultadoCierre !== null && (
+        <div className="flex items-start gap-2 p-3 rounded-lg bg-[#FEF3C7] border border-[#FDE68A]">
+          <CheckCircle size={15} className="text-[#D97706] mt-0.5 shrink-0" />
+          <p className="text-xs text-[#92400E]">
+            Periodo cerrado. Se cerraron <span className="font-semibold">{resultadoCierre}</span> expedientes.
+          </p>
+        </div>
+      )}
 
       {/* Periodo Lectivo */}
       <Card className="border-[#E5E7EB]">
@@ -113,7 +197,7 @@ export default function AdminConfig() {
                 </CardDescription>
               </div>
             </div>
-            {periodoEstado === "abierto" ? (
+            {periodoAbierto ? (
               <Badge className="gap-1.5 bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0] hover:bg-[#ECFDF5]">
                 <CheckCircle size={12} />
                 Periodo abierto
@@ -145,9 +229,10 @@ export default function AdminConfig() {
                   onClick={handleGuardarPeriodo}
                   variant="outline"
                   className="gap-2 border-[#E5E7EB] text-[#374151] hover:bg-[#F3F4F6]"
+                  disabled={loadingSave}
                 >
                   <Save size={15} />
-                  Guardar
+                  {loadingSave ? "Guardando..." : "Guardar"}
                 </Button>
                 {savedMessage && (
                   <span className="flex items-center gap-1 text-sm text-[#059669]">
@@ -173,7 +258,7 @@ export default function AdminConfig() {
                 <Users size={16} className="text-[#3B82F6]" />
                 <span className="text-xs text-[#6B7280]">Alumnos activos</span>
               </div>
-              <p className="text-2xl font-bold text-[#1E3A5F]">{ALUMNOS_ACTIVOS}</p>
+              <p className="text-2xl font-bold text-[#1E3A5F]">{alumnosActivos}</p>
             </div>
             <div className="p-4 rounded-lg bg-[#F9FAFB] border border-[#E5E7EB]">
               <div className="flex items-center gap-2 mb-1">
@@ -181,7 +266,7 @@ export default function AdminConfig() {
                 <span className="text-xs text-[#6B7280]">Expedientes periodo</span>
               </div>
               <p className="text-2xl font-bold text-[#1E3A5F]">
-                {periodoEstado === "abierto" ? ALUMNOS_ACTIVOS : 0}
+                {expedientesActivos}
               </p>
             </div>
             <div className="p-4 rounded-lg bg-[#F9FAFB] border border-[#E5E7EB]">
@@ -189,8 +274,8 @@ export default function AdminConfig() {
                 <CalendarDays size={16} className="text-[#D97706]" />
                 <span className="text-xs text-[#6B7280]">Estado</span>
               </div>
-              <p className={`text-sm font-semibold ${periodoEstado === "abierto" ? "text-[#059669]" : "text-[#6B7280]"}`}>
-                {periodoEstado === "abierto" ? "En curso" : "Finalizado"}
+              <p className={`text-sm font-semibold ${periodoAbierto ? "text-[#059669]" : "text-[#6B7280]"}`}>
+                {periodoAbierto ? "En curso" : "Finalizado"}
               </p>
             </div>
           </div>
@@ -202,8 +287,8 @@ export default function AdminConfig() {
           <div className="flex items-center gap-3">
             <Button
               className="gap-2 bg-[#1E3A5F] hover:bg-[#2D4A6F] text-white"
-              onClick={() => setDialogApertura(true)}
-              disabled={periodoEstado === "abierto"}
+              onClick={() => { setResultadoApertura(null); setResultadoCierre(null); setErrorMessage(null); setDialogApertura(true) }}
+              disabled={periodoAbierto}
             >
               <BookOpen size={16} />
               Aperturar periodo
@@ -211,15 +296,15 @@ export default function AdminConfig() {
             <Button
               variant="outline"
               className="gap-2 border-[#FCA5A5] text-[#DC2626] hover:bg-[#FEF2F2] hover:text-[#DC2626]"
-              onClick={() => setDialogCierre(true)}
-              disabled={periodoEstado === "cerrado"}
+              onClick={() => { setResultadoApertura(null); setResultadoCierre(null); setErrorMessage(null); setDialogCierre(true) }}
+              disabled={!periodoAbierto}
             >
               <XCircle size={16} />
               Cerrar periodo
             </Button>
           </div>
 
-          {periodoEstado === "cerrado" && (
+          {!periodoAbierto && (
             <div className="flex items-start gap-2 p-3 rounded-lg bg-[#FEF3C7] border border-[#FDE68A]">
               <AlertTriangle size={15} className="text-[#D97706] mt-0.5 shrink-0" />
               <p className="text-xs text-[#92400E]">
@@ -236,23 +321,23 @@ export default function AdminConfig() {
           <DialogHeader>
             <DialogTitle className="text-[#1E3A5F] flex items-center gap-2">
               <BookOpen size={18} className="text-[#3B82F6]" />
-              Aperturar periodo {periodoInput}
+              Aperturar periodo {periodoVigente}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <p className="text-sm text-[#374151]">
               Esta accion creara expedientes del periodo{" "}
-              <span className="font-semibold text-[#1E3A5F]">{periodoInput}</span> para todos los
+              <span className="font-semibold text-[#1E3A5F]">{periodoVigente}</span> para todos los
               alumnos activos del sistema.
             </p>
             <div className="flex items-center gap-3 p-4 rounded-lg bg-[#EEF2FF] border border-[#C7D2FE]">
               <Users size={20} className="text-[#3B82F6] shrink-0" />
               <div>
                 <p className="text-sm font-semibold text-[#1E3A5F]">
-                  {ALUMNOS_ACTIVOS} alumnos activos
+                  {alumnosActivos} alumnos activos
                 </p>
                 <p className="text-xs text-[#6B7280]">
-                  Se crearan {ALUMNOS_ACTIVOS} expedientes nuevos
+                  Se crearan hasta {alumnosActivos} expedientes nuevos
                 </p>
               </div>
             </div>
@@ -299,7 +384,7 @@ export default function AdminConfig() {
               <AlertTriangle size={20} className="text-[#DC2626] shrink-0" />
               <div>
                 <p className="text-sm font-semibold text-[#DC2626]">
-                  {ALUMNOS_ACTIVOS} expedientes seran cerrados
+                  Los expedientes activos seran cerrados
                 </p>
                 <p className="text-xs text-[#6B7280]">
                   Los expedientes pasaran al estado "cerrado" y no podran editarse
