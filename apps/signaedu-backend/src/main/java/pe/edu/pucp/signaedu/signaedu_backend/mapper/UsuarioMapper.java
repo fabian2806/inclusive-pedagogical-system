@@ -34,6 +34,7 @@ public class UsuarioMapper {
                 .nombre(usuario.getNombre())
                 .apellido(usuario.getApellido())
                 .correo(usuario.getCorreo())
+                .telefono(usuario.getTelefono())
                 .build();
     }
 }
