@@ -16,7 +16,9 @@ import pe.edu.pucp.signaedu.signaedu_backend.model.Rol;
 import pe.edu.pucp.signaedu.signaedu_backend.model.Usuario;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.EstadoAlumno;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.TipoRol;
+import pe.edu.pucp.signaedu.signaedu_backend.model.Expediente;
 import pe.edu.pucp.signaedu.signaedu_backend.repository.AlumnoRepository;
+import pe.edu.pucp.signaedu.signaedu_backend.repository.ExpedienteRepository;
 import pe.edu.pucp.signaedu.signaedu_backend.repository.UsuarioRepository;
 
 import java.time.LocalDate;
@@ -38,6 +40,12 @@ class AlumnoServiceTest {
 
     @Mock
     private UsuarioRepository usuarioRepository;
+
+    @Mock
+    private ExpedienteRepository expedienteRepository;
+
+    @Mock
+    private ConfiguracionService configuracionService;
 
     @Mock
     private AlumnoMapper alumnoMapper;
@@ -99,11 +107,40 @@ class AlumnoServiceTest {
         when(alumnoMapper.toEntity(request)).thenReturn(alumno);
         when(alumnoRepository.save(any(Alumno.class))).thenReturn(alumno);
         when(alumnoMapper.toResponse(alumno)).thenReturn(alumnoResponse());
+        when(configuracionService.obtenerValorPeriodo()).thenReturn("2026");
+        when(expedienteRepository.save(any(Expediente.class))).thenReturn(Expediente.builder().id(1L).build());
 
         AlumnoResponse response = alumnoService.crearAlumno(request);
 
         assertThat(response.getNombre()).isEqualTo("Carlos");
         verify(alumnoRepository).save(any(Alumno.class));
+    }
+
+    @Test
+    void debeCrearExpedienteAutomaticamenteAlCrearAlumno() {
+        AlumnoCreateRequest request = new AlumnoCreateRequest();
+        request.setNombre("Carlos");
+        request.setApellido("López");
+        request.setFechaNacimiento(LocalDate.of(2015, 3, 10));
+        request.setGrado("3ro");
+        request.setSeccion("A");
+
+        Alumno alumno = alumno();
+
+        when(alumnoMapper.toEntity(request)).thenReturn(alumno);
+        when(alumnoRepository.save(any(Alumno.class))).thenReturn(alumno);
+        when(alumnoMapper.toResponse(alumno)).thenReturn(alumnoResponse());
+        when(configuracionService.obtenerValorPeriodo()).thenReturn("2026");
+        when(expedienteRepository.save(any(Expediente.class))).thenReturn(Expediente.builder().id(1L).build());
+
+        alumnoService.crearAlumno(request);
+
+        verify(configuracionService).obtenerValorPeriodo();
+        verify(expedienteRepository).save(argThat(exp ->
+                exp.getAlumno().equals(alumno) &&
+                exp.getPeriodoLectivo().equals("2026") &&
+                exp.getFechaApertura().equals(LocalDate.now())
+        ));
     }
 
     @Test

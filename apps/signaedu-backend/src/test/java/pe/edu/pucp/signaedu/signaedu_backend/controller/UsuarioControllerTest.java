@@ -58,7 +58,7 @@ class UsuarioControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "ADMIN")
+    @WithMockUser(authorities = {"USUARIO_CREAR", "USUARIO_LEER", "USUARIO_ACTUALIZAR", "USUARIO_DESACTIVAR"})
     void debeCrearUsuario201ConRolAdmin() throws Exception {
         UsuarioCreateRequest request = new UsuarioCreateRequest();
         request.setNombre("Ana");
@@ -79,7 +79,7 @@ class UsuarioControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "ADMIN")
+    @WithMockUser(authorities = {"USUARIO_CREAR", "USUARIO_LEER", "USUARIO_ACTUALIZAR", "USUARIO_DESACTIVAR"})
     void debeListarUsuarios200() throws Exception {
         when(usuarioService.listarUsuarios(null)).thenReturn(List.of(usuarioResponse()));
 
@@ -89,7 +89,7 @@ class UsuarioControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "ADMIN")
+    @WithMockUser(authorities = {"USUARIO_CREAR", "USUARIO_LEER", "USUARIO_ACTUALIZAR", "USUARIO_DESACTIVAR"})
     void debeObtenerUsuarioPorId200() throws Exception {
         when(usuarioService.obtenerUsuarioPorId(1L)).thenReturn(usuarioResponse());
 
@@ -99,7 +99,7 @@ class UsuarioControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "ADMIN")
+    @WithMockUser(authorities = {"USUARIO_CREAR", "USUARIO_LEER", "USUARIO_ACTUALIZAR", "USUARIO_DESACTIVAR"})
     void debeRetornar400ConDatosInvalidos() throws Exception {
         UsuarioCreateRequest request = new UsuarioCreateRequest();
         request.setNombre("");
@@ -114,8 +114,8 @@ class UsuarioControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "DOCENTE")
-    void debeRetornar403SinRolAdmin() throws Exception {
+    @WithMockUser(authorities = {"ALUMNO_LEER"})
+    void debeRetornar403SinPermisoUsuarioLeer() throws Exception {
         mockMvc.perform(get("/admin/usuarios"))
                 .andExpect(status().isForbidden());
     }

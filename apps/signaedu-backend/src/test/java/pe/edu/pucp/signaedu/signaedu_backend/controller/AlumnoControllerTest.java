@@ -62,7 +62,7 @@ class AlumnoControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "ADMIN")
+    @WithMockUser(authorities = {"ALUMNO_CREAR", "ALUMNO_LEER", "ALUMNO_ACTUALIZAR", "ALUMNO_DESACTIVAR"})
     void debeCrearAlumno201ConRolAdmin() throws Exception {
         AlumnoCreateRequest request = new AlumnoCreateRequest();
         request.setNombre("Carlos");
@@ -82,7 +82,7 @@ class AlumnoControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "ADMIN")
+    @WithMockUser(authorities = {"ALUMNO_CREAR", "ALUMNO_LEER", "ALUMNO_ACTUALIZAR", "ALUMNO_DESACTIVAR"})
     void debeListarAlumnos200() throws Exception {
         when(alumnoService.listarAlumnos()).thenReturn(List.of(alumnoResponse()));
 
@@ -92,7 +92,7 @@ class AlumnoControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "ADMIN")
+    @WithMockUser(authorities = {"ALUMNO_CREAR", "ALUMNO_LEER", "ALUMNO_ACTUALIZAR", "ALUMNO_DESACTIVAR"})
     void debeAsignarDocente200() throws Exception {
         when(alumnoService.asignarDocente(1L, 10L)).thenReturn(alumnoResponse());
 
@@ -101,8 +101,8 @@ class AlumnoControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "DOCENTE")
-    void debeRetornar403SinRolAdmin() throws Exception {
+    @WithMockUser(authorities = {"USUARIO_LEER"})
+    void debeRetornar403SinPermisoAlumnoLeer() throws Exception {
         mockMvc.perform(get("/admin/alumnos"))
                 .andExpect(status().isForbidden());
     }

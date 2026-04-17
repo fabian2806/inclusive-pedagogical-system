@@ -17,6 +17,8 @@ import pe.edu.pucp.signaedu.signaedu_backend.dto.response.LoginResponse;
 import pe.edu.pucp.signaedu.signaedu_backend.security.CustomUserDetailsService;
 import pe.edu.pucp.signaedu.signaedu_backend.security.JwtAuthenticationFilter;
 import pe.edu.pucp.signaedu.signaedu_backend.security.JwtService;
+import pe.edu.pucp.signaedu.signaedu_backend.mapper.UsuarioMapper;
+import pe.edu.pucp.signaedu.signaedu_backend.repository.UsuarioRepository;
 import pe.edu.pucp.signaedu.signaedu_backend.service.AuthService;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -44,6 +46,12 @@ class AuthControllerTest {
 
     @MockitoBean
     private CustomUserDetailsService customUserDetailsService;
+
+    @MockitoBean
+    private UsuarioRepository usuarioRepository;
+
+    @MockitoBean
+    private UsuarioMapper usuarioMapper;
 
     @Test
     void loginDebeRetornar200ConCredencialesValidas() throws Exception {

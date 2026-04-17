@@ -57,7 +57,7 @@ class TipoDocumentoControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "ADMIN")
+    @WithMockUser(authorities = {"TIPO_DOCUMENTO_GESTIONAR"})
     void debeCrearTipoDocumento201ConRolAdmin() throws Exception {
         TipoDocumentoCreateRequest request = new TipoDocumentoCreateRequest();
         request.setNombre("Informe Especial");
@@ -77,7 +77,7 @@ class TipoDocumentoControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "ADMIN")
+    @WithMockUser(authorities = {"TIPO_DOCUMENTO_GESTIONAR"})
     void debeListarTiposDocumento200() throws Exception {
         when(tipoDocumentoService.listarTiposDocumento()).thenReturn(List.of(tipoResponse()));
 
@@ -87,15 +87,15 @@ class TipoDocumentoControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "ADMIN")
+    @WithMockUser(authorities = {"TIPO_DOCUMENTO_GESTIONAR"})
     void debeEliminarTipoDocumento204() throws Exception {
         mockMvc.perform(delete("/admin/tipos-documento/10"))
                 .andExpect(status().isNoContent());
     }
 
     @Test
-    @WithMockUser(roles = "DOCENTE")
-    void debeRetornar403SinRolAdmin() throws Exception {
+    @WithMockUser(authorities = {"ALUMNO_LEER"})
+    void debeRetornar403SinPermisoTipoDocumento() throws Exception {
         mockMvc.perform(get("/admin/tipos-documento"))
                 .andExpect(status().isForbidden());
     }
