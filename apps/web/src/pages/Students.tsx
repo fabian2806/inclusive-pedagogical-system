@@ -1,99 +1,47 @@
-import { useState } from "react"
+import { useCallback, useState } from "react"
 import { Search, Filter } from "lucide-react"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { StudentCard } from "@/components/StudentCard"
-
-// Mock data
-const students = [
-  {
-    id: "1",
-    name: "Sofía Rodríguez Pérez",
-    grade: "3° Primaria",
-    age: 8,
-    status: "activo",
-    priority: false,
-    lastUpdate: "Hace 2 horas",
-    entries: 24,
-    initials: "SR",
-    hearingLevel: "Hipoacusia severa bilateral",
-  },
-  {
-    id: "2",
-    name: "Carlos Mendoza Ruiz",
-    grade: "4° Primaria",
-    age: 9,
-    status: "activo",
-    priority: true,
-    lastUpdate: "Hace 1 día",
-    entries: 31,
-    initials: "CM",
-    hearingLevel: "Hipoacusia profunda",
-  },
-  {
-    id: "3",
-    name: "Ana García Torres",
-    grade: "2° Primaria",
-    age: 7,
-    status: "activo",
-    priority: false,
-    lastUpdate: "Hace 3 días",
-    entries: 18,
-    initials: "AG",
-    hearingLevel: "Hipoacusia moderada",
-  },
-  {
-    id: "4",
-    name: "Luis Fernández Díaz",
-    grade: "5° Primaria",
-    age: 10,
-    status: "activo",
-    priority: false,
-    lastUpdate: "Hace 4 días",
-    entries: 42,
-    initials: "LF",
-    hearingLevel: "Hipoacusia severa unilateral",
-  },
-  {
-    id: "5",
-    name: "María López Sánchez",
-    grade: "3° Primaria",
-    age: 8,
-    status: "inactivo",
-    priority: false,
-    lastUpdate: "Hace 2 semanas",
-    entries: 15,
-    initials: "ML",
-    hearingLevel: "Hipoacusia profunda bilateral",
-  },
-  {
-    id: "6",
-    name: "Pedro Ramírez Vega",
-    grade: "1° Primaria",
-    age: 6,
-    status: "activo",
-    priority: true,
-    lastUpdate: "Hace 5 horas",
-    entries: 8,
-    initials: "PR",
-    hearingLevel: "Hipoacusia severa",
-  },
-]
-
-//TODO: Reemplazar el mock por datos de la API
-//TODO: Agregar renderizado condicional para los roles restantes (SAANEE y Padre)
+import { useApiQuery } from "@/hooks/useApiQuery"
+import { alumnosService } from "@/lib/api/alumnosService"
 
 export default function Students() {
   const [search, setSearch] = useState("")
   const [filterGrade, setFilterGrade] = useState("all")
   const [filterStatus, setFilterStatus] = useState("all")
 
-  const filteredStudents = students.filter((student) => {
-    const matchesSearch = student.name.toLowerCase().includes(search.toLowerCase())
-    const matchesGrade = filterGrade === "all" || student.grade === filterGrade
-    const matchesStatus = filterStatus === "all" || student.status === filterStatus
+  const fetchAlumnos = useCallback(() => alumnosService.listar(), [])
+  const { data: alumnos, isLoading, error } = useApiQuery(fetchAlumnos)
+
+  const filteredStudents = (alumnos ?? []).filter((alumno) => {
+    const fullName = `${alumno.nombre} ${alumno.apellido}`.toLowerCase()
+    const matchesSearch = fullName.includes(search.toLowerCase())
+    const matchesGrade = filterGrade === "all" || alumno.grado === filterGrade
+    const matchesStatus =
+      filterStatus === "all" ||
+      (filterStatus === "activo" && alumno.estado === "ACTIVO") ||
+      (filterStatus === "inactivo" && alumno.estado === "INACTIVO")
     return matchesSearch && matchesGrade && matchesStatus
   })
+
+  const grados = [...new Set((alumnos ?? []).map((a) => a.grado))].sort()
+
+  if (isLoading) {
+    return (
+      <div className="p-6 flex items-center justify-center">
+        <p className="text-[#6B7280]">Cargando estudiantes...</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 flex items-center justify-center">
+        <p className="text-[#DC2626]">{error}</p>
+      </div>
+    )
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -124,12 +72,9 @@ export default function Students() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos los grados</SelectItem>
-            <SelectItem value="1° Primaria">1° Primaria</SelectItem>
-            <SelectItem value="2° Primaria">2° Primaria</SelectItem>
-            <SelectItem value="3° Primaria">3° Primaria</SelectItem>
-            <SelectItem value="4° Primaria">4° Primaria</SelectItem>
-            <SelectItem value="5° Primaria">5° Primaria</SelectItem>
-            <SelectItem value="6° Primaria">6° Primaria</SelectItem>
+            {grados.map((grado) => (
+              <SelectItem key={grado} value={grado}>{grado}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
         <Select value={filterStatus} onValueChange={setFilterStatus}>
@@ -150,10 +95,10 @@ export default function Students() {
         <span>{filteredStudents.length} estudiantes encontrados</span>
       </div>
 
-      {/* Grilla del Card de Estudiantes */}
+      {/* Grilla de Cards */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredStudents.map((student) => (
-          <StudentCard key={student.id} {...student} />
+        {filteredStudents.map((alumno) => (
+          <StudentCard key={alumno.id} alumno={alumno} />
         ))}
       </div>
     </div>

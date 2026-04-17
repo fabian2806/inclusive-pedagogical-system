@@ -30,6 +30,7 @@ export interface UsuarioSimpleResponse {
   nombre: string
   apellido: string
   correo: string
+  telefono: string | null
 }
 
 export interface AlumnoResponse {
@@ -117,6 +118,63 @@ export interface TipoDocumentoUpdateRequest {
   esVersionable: boolean
   esPeriodico: boolean
   periodicidad?: string
+}
+
+// --- Perfil Discapacidad Auditiva ---
+
+export interface PerfilDiscapacidadResponse {
+  id: number
+  alumnoId: number
+  modoComunicacionPreferido: string | null
+  observacionesGenerales: string | null
+  barreras: BarreraResponse[]
+  fortalezas: FortalezaResponse[]
+  apoyos: ApoyoResponse[]
+}
+
+export interface BarreraResponse {
+  id: number
+  tipo: string
+  descripcion: string
+}
+
+export interface FortalezaResponse {
+  id: number
+  dimension: string
+  descripcion: string
+}
+
+export interface ApoyoResponse {
+  id: number
+  intensidad: string
+  funcion: string
+  descripcion: string
+  fuente: string
+}
+
+export interface PerfilDiscapacidadRequest {
+  modoComunicacionPreferido?: string
+  observacionesGenerales?: string
+  barreras: BarreraRequest[]
+  fortalezas: FortalezaRequest[]
+  apoyos: ApoyoRequest[]
+}
+
+export interface BarreraRequest {
+  tipo: string
+  descripcion: string
+}
+
+export interface FortalezaRequest {
+  dimension: string
+  descripcion: string
+}
+
+export interface ApoyoRequest {
+  intensidad: string
+  funcion: string
+  descripcion: string
+  fuente: string
 }
 
 // --- Configuración / Periodo Lectivo ---
