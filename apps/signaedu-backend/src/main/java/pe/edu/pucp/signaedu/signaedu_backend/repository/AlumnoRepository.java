@@ -8,4 +8,6 @@ import java.util.List;
 
 public interface AlumnoRepository extends JpaRepository<Alumno, Long> {
     List<Alumno> findByEstado(EstadoAlumno estado);
+    boolean existsByIdAndDocentesId(Long id, Long docenteId);
+    boolean existsByIdAndPadresId(Long id, Long padreId);
 }
