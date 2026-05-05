@@ -177,6 +177,48 @@ export interface ApoyoRequest {
   fuente: string
 }
 
+// --- Bitácora / Entrada Expediente ---
+
+export type TipoEntrada =
+  | 'OBSERVACION_PEDAGOGICA'
+  | 'COMUNICACION_FAMILIAR'
+  | 'INCIDENCIA_COMUNICACION'
+  | 'APOYO_O_AJUSTE'
+  | 'EVALUACION_INDICADOR'
+  | 'EVENTO_AGENDA'
+  | 'DOCUMENTO_ADJUNTADO'
+  | 'FEEDBACK_SAANEE'
+
+export interface EntradaExpedienteRequest {
+  tipo: TipoEntrada
+  descripcion: string
+  entradaRaizId?: number | null
+  nivelImportancia?: string | null
+  dirigidoAUsuarioId?: number | null
+  severidad?: string | null
+  resultado?: string | null
+}
+
+export interface EntradaExpedienteResponse {
+  id: number
+  expedienteId: number
+  tipo: TipoEntrada
+  autor: UsuarioSimpleResponse
+  fecha: string
+  descripcion: string
+  entradaRaizId: number | null
+  nivelImportancia: string | null
+  dirigidoA: UsuarioSimpleResponse | null
+  severidad: string | null
+  resultado: string | null
+}
+
+export interface BitacoraListarFiltros {
+  tipo?: TipoEntrada
+  desde?: string
+  hasta?: string
+}
+
 // --- Configuración / Periodo Lectivo ---
 
 export interface ConfiguracionPeriodoResponse {

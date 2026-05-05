@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { ArrowLeft, User, Calendar, FileText, Upload, Plus, MessageSquare, Paperclip,
   Clock, Phone, Mail, Heart, FolderOpen, Download, Eye, History, CheckCircle,
   AlertCircle, FileCheck,
@@ -9,12 +9,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
-import { Link } from "react-router-dom"
+import { Link, useParams } from "react-router-dom"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
+import { bitacoraService } from "@/lib/api"
+import { useAuth } from "@/hooks/useAuth"
+import type { EntradaExpedienteResponse, TipoEntrada } from "@/types/api"
+import type { UserRole } from "@/types/auth"
+import { AxiosError } from "axios"
 
 // Mock student data
 const student = {
@@ -81,129 +85,116 @@ type BitacoraEntry = {
   resultado?: string
 }
 
-const bitacoraEntries: BitacoraEntry[] = [
-  {
-    id: "1",
-    date: "22 Mar 2025",
-    time: "10:30 AM",
-    author: "Prof. María Castro",
-    role: "Docente",
-    type: "observacion_pe",
-    title: "Avance en lectoescritura",
-    content:
-      "Sofía mostró mejora significativa en la identificación de palabras nuevas. Logró leer correctamente 8 de 10 palabras del ejercicio. Se recomienda continuar con ejercicios de reconocimiento visual.",
+// --- Traducción entre IDs visuales del frontend y el enum TipoEntrada del backend ---
+const FRONT_TO_BACK: Record<string, TipoEntrada> = {
+  observacion_pe: "OBSERVACION_PEDAGOGICA",
+  comunicacion_familiar: "COMUNICACION_FAMILIAR",
+  incidencia: "INCIDENCIA_COMUNICACION",
+  apoyo_ajuste: "APOYO_O_AJUSTE",
+  evaluacion_indicador: "EVALUACION_INDICADOR",
+  evento_agenda: "EVENTO_AGENDA",
+  documento: "DOCUMENTO_ADJUNTADO",
+  feedback_saanee: "FEEDBACK_SAANEE",
+}
+
+const BACK_TO_FRONT: Record<TipoEntrada, string> = {
+  OBSERVACION_PEDAGOGICA: "observacion_pe",
+  COMUNICACION_FAMILIAR: "comunicacion_familiar",
+  INCIDENCIA_COMUNICACION: "incidencia",
+  APOYO_O_AJUSTE: "apoyo_ajuste",
+  EVALUACION_INDICADOR: "evaluacion_indicador",
+  EVENTO_AGENDA: "evento_agenda",
+  DOCUMENTO_ADJUNTADO: "documento",
+  FEEDBACK_SAANEE: "feedback_saanee",
+}
+
+// Matriz rol → tipos creables (espejo de la del backend en BitacoraService)
+const TIPOS_POR_ROL: Record<UserRole, string[]> = {
+  docente: ["observacion_pe", "incidencia", "apoyo_ajuste"],
+  padre: ["comunicacion_familiar"],
+  saanee: ["feedback_saanee"],
+  admin: [],
+}
+
+// Inferencia temporal del rol del autor a partir del tipo de entrada.
+// TODO: cuando el UsuarioSimpleResponse devuelva los roles, usar el rol real.
+function rolDelTipo(tipo: TipoEntrada): string {
+  switch (tipo) {
+    case "OBSERVACION_PEDAGOGICA":
+    case "INCIDENCIA_COMUNICACION":
+    case "APOYO_O_AJUSTE":
+      return "Docente"
+    case "COMUNICACION_FAMILIAR":
+      return "Familia"
+    case "FEEDBACK_SAANEE":
+      return "SAANEE"
+    default:
+      return "Usuario"
+  }
+}
+
+function formatearFecha(iso: string): { date: string; time: string } {
+  const d = new Date(iso)
+  return {
+    date: d.toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" }),
+    time: d.toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" }),
+  }
+}
+
+function tituloDerivado(e: EntradaExpedienteResponse): string {
+  const primeraLinea = e.descripcion.split("\n")[0]
+  return primeraLinea.length > 80 ? primeraLinea.slice(0, 77) + "…" : primeraLinea
+}
+
+function toReply(e: EntradaExpedienteResponse): Reply {
+  const { date, time } = formatearFecha(e.fecha)
+  return {
+    author: `${e.autor.nombre} ${e.autor.apellido}`,
+    role: rolDelTipo(e.tipo),
+    date,
+    time,
+    content: e.descripcion,
     attachments: [],
-  },
-  {
-    id: "2",
-    date: "21 Mar 2025",
-    time: "2:00 PM",
-    author: "Prof. María Castro",
-    role: "Docente",
-    type: "apoyo_ajuste",
-    title: "Ajuste de ubicación en el aula",
-    content:
-      "Se reubicó a Sofía en la primera fila, cerca de la ventana para mejor iluminación. Se implementó el uso de tarjetas visuales para instrucciones. Mejora notoria en la atención durante clase.",
+  }
+}
+
+function toUiEntry(e: EntradaExpedienteResponse, replies: EntradaExpedienteResponse[] = []): BitacoraEntry {
+  const { date, time } = formatearFecha(e.fecha)
+  return {
+    id: String(e.id),
+    date,
+    time,
+    author: `${e.autor.nombre} ${e.autor.apellido}`,
+    role: rolDelTipo(e.tipo),
+    type: BACK_TO_FRONT[e.tipo],
+    title: tituloDerivado(e),
+    content: e.descripcion,
     attachments: [],
-  },
-  {
-    id: "3",
-    date: "20 Mar 2025",
-    time: "3:15 PM",
-    author: "Esp. Roberto Quispe",
-    role: "SAANEE",
-    type: "evaluacion_indicador",
-    title: "Evaluación de indicador: Comunicación expresiva",
-    content:
-      "Se evaluó el indicador COM-03: Expresión de necesidades básicas en LSP. Resultado: Logrado (85%). Sofía demuestra dominio de 45 señas nuevas este mes. Área de oportunidad: expresión de emociones complejas.",
-    attachments: [{ name: "Evaluacion_COM03_Marzo.pdf", size: "245 KB" }],
-  },
-  {
-    id: "4",
-    date: "18 Mar 2025",
-    time: "9:00 AM",
-    author: "Sistema",
-    role: "Sistema",
-    type: "evento_agenda",
-    title: "Reunión trimestral con familia",
-    content:
-      "Evento programado completado. Asistentes: Elena Pérez (madre), Juan Rodríguez (padre), Prof. María Castro, Esp. Roberto Quispe. Se compartieron avances del trimestre y se establecieron metas.",
-    attachments: [{ name: "Acta_Reunion_18Mar.pdf", size: "120 KB" }],
-  },
-  {
-    id: "5",
-    date: "15 Mar 2025",
-    time: "11:30 AM",
-    author: "Prof. María Castro",
-    role: "Docente",
-    type: "documento",
-    title: "Informe de progreso mensual adjuntado",
-    content:
-      "Se adjunta el informe de progreso del mes de febrero 2025. Incluye evaluación de áreas: comunicación, matemáticas, socialización y autonomía.",
-    attachments: [
-      { name: "Informe_Progreso_Feb2025.pdf", size: "380 KB" },
-      { name: "Anexo_Evidencias.pdf", size: "1.2 MB" },
-    ],
-  },
-  {
-    id: "6",
-    date: "12 Mar 2025",
-    time: "4:00 PM",
-    author: "Esp. Roberto Quispe",
-    role: "SAANEE",
-    type: "feedback_saanee",
-    title: "Retroalimentación sobre estrategias de aula",
-    content:
-      "Excelente trabajo con las adaptaciones visuales implementadas. Recomiendo incorporar pausas activas con señas cada 20 minutos. Adjunto guía de actividades kinestésicas para complementar.",
-    attachments: [{ name: "Guia_Actividades_Kinestesicas.pdf", size: "290 KB" }],
-    replies: [
-      {
-        author: "Prof. María Castro",
-        role: "Docente",
-        date: "13 Mar 2025",
-        time: "8:30 AM",
-        content:
-          "Gracias por la retroalimentación. Implementaré las pausas activas a partir de hoy. ¿Podríamos coordinar una observación de aula la próxima semana?",
-        attachments: [],
-      },
-    ],
-  },
-  {
-    id: "7",
-    date: "10 Mar 2025",
-    time: "6:45 PM",
-    author: "Elena Pérez",
-    role: "Familia",
-    type: "comunicacion_familiar",
-    title: "Consulta sobre tarea de comunicación",
-    content:
-      "Buenas tardes, Sofía tuvo dificultad con la tarea de lectura de labios. En casa practicamos pero quisiera saber si hay algún material adicional que podamos usar. Gracias.",
-    attachments: [],
-    replies: [
-      {
-        author: "Prof. María Castro",
-        role: "Docente",
-        date: "11 Mar 2025",
-        time: "9:00 AM",
-        content:
-          "Estimada Elena, le comparto un video tutorial con ejercicios de lectura labial. Puede practicar 10 minutos diarios. Sofía responde muy bien cuando se combina con señas.",
-        attachments: [{ name: "Tutorial_Lectura_Labial.mp4", size: "45 MB" }],
-      },
-    ],
-  },
-  {
-    id: "8",
-    date: "8 Mar 2025",
-    time: "11:20 AM",
-    author: "Prof. María Castro",
-    role: "Docente",
-    type: "incidencia",
-    title: "Dificultad de comunicación en actividad grupal",
-    content:
-      "Durante la actividad grupal de ciencias, Sofía tuvo dificultad para seguir las instrucciones debido a que sus compañeros hablaban simultáneamente. Se generó frustración momentánea. Se intervino reubicando al grupo y usando señas de apoyo. Se recomienda reforzar protocolo de turnos de habla con el grupo.",
-    attachments: [],
-  },
-]
+    replies: replies
+      .slice()
+      .sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime())
+      .map(toReply),
+    importancia: e.nivelImportancia ?? undefined,
+    severidad: e.severidad ?? undefined,
+    resultado: e.resultado ?? undefined,
+  }
+}
+
+// Convierte la lista plana del backend (raíces + respuestas) en hilos para la UI.
+function agruparHilos(items: EntradaExpedienteResponse[]): BitacoraEntry[] {
+  const respuestasPorRaiz = new Map<number, EntradaExpedienteResponse[]>()
+  const raices: EntradaExpedienteResponse[] = []
+  for (const item of items) {
+    if (item.entradaRaizId == null) {
+      raices.push(item)
+    } else {
+      const lista = respuestasPorRaiz.get(item.entradaRaizId) ?? []
+      lista.push(item)
+      respuestasPorRaiz.set(item.entradaRaizId, lista)
+    }
+  }
+  return raices.map((r) => toUiEntry(r, respuestasPorRaiz.get(r.id) ?? []))
+}
 
 const upcomingEvents = [
   {
@@ -409,14 +400,21 @@ const MOCK_EVENTOS = [
 ]
 
 export default function StudentRecord() {
-  const [newEntry, setNewEntry] = useState("")
+  const { id } = useParams<{ id: string }>()
+  const alumnoId = Number(id)
+  const { user } = useAuth()
+
   const [activeMainTab, setActiveMainTab] = useState<"bitacora" | "documentos">("bitacora")
   const [showVersionHistory, setShowVersionHistory] = useState<string | null>(null)
 
   const [activeFilter, setActiveFilter] = useState("all")
   const [replyingTo, setReplyingTo] = useState<string | null>(null)
   const [replyText, setReplyText] = useState("")
-  const [entries, setEntries] = useState(bitacoraEntries)
+
+  const [entries, setEntries] = useState<BitacoraEntry[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
 
   // New entry form state
   const [entryForm, setEntryForm] = useState({
@@ -432,43 +430,97 @@ export default function StudentRecord() {
 
   const selectedType = ENTRY_TYPES.find(t => t.id === entryForm.tipo)
 
-  const handlePublish = () => {
-    if (!entryForm.tipo || !entryForm.contenido.trim()) return
-    const typeConfig = ENTRY_TYPES.find(t => t.id === entryForm.tipo)!
-    const newE = {
-      id: Date.now().toString(),
-      date: new Date().toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" }),
-      time: new Date().toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" }),
-      author: "Prof. María Castro",
-      role: "Docente",
-      type: entryForm.tipo,
-      title: entryForm.titulo || typeConfig.label,
-      content: entryForm.contenido,
-      attachments: [],
-      replies: [],
-      importancia: entryForm.importancia || undefined,
-      severidad: entryForm.severidad || undefined,
-      resultado: entryForm.resultado || undefined,
+  // Tipos visibles en el formulario según el rol del usuario autenticado.
+  // Espejo de la matriz validada en el backend: si el rol no puede crear ese tipo,
+  // no se muestra en el selector (evita un 400 al publicar).
+  const tiposPermitidos = useMemo(
+    () => (user ? TIPOS_POR_ROL[user.rol] ?? [] : []),
+    [user],
+  )
+  const tiposVisibles = useMemo(
+    () => ENTRY_TYPES.filter(t => tiposPermitidos.includes(t.id)),
+    [tiposPermitidos],
+  )
+
+  const cargar = useCallback(async () => {
+    if (!Number.isFinite(alumnoId)) {
+      setError("ID de alumno inválido")
+      setIsLoading(false)
+      return
     }
-    setEntries([newE, ...entries])
-    setEntryForm({ tipo: "", titulo: "", contenido: "", importancia: "", severidad: "", indicadorId: "", eventoId: "", resultado: "" })
+    setIsLoading(true)
+    setError(null)
+    try {
+      const data = await bitacoraService.listar(alumnoId)
+      setEntries(agruparHilos(data))
+    } catch (err) {
+      if (err instanceof AxiosError) {
+        setError(err.response?.data?.mensaje ?? err.message)
+      } else {
+        setError("Error inesperado al cargar la bitácora")
+      }
+    } finally {
+      setIsLoading(false)
+    }
+  }, [alumnoId])
+
+  useEffect(() => {
+    cargar()
+  }, [cargar])
+
+  const handlePublish = async () => {
+    if (!entryForm.tipo || !entryForm.contenido.trim()) return
+    const tipoBackend = FRONT_TO_BACK[entryForm.tipo]
+    if (!tipoBackend) return
+    setSubmitting(true)
+    setError(null)
+    try {
+      await bitacoraService.crear(alumnoId, {
+        tipo: tipoBackend,
+        descripcion: entryForm.contenido,
+        nivelImportancia: entryForm.importancia || null,
+        severidad: entryForm.severidad || null,
+        resultado: entryForm.resultado || null,
+      })
+      setEntryForm({ tipo: "", titulo: "", contenido: "", importancia: "", severidad: "", indicadorId: "", eventoId: "", resultado: "" })
+      await cargar()
+    } catch (err) {
+      if (err instanceof AxiosError) {
+        setError(err.response?.data?.mensaje ?? err.message)
+      } else {
+        setError("Error inesperado al publicar la entrada")
+      }
+    } finally {
+      setSubmitting(false)
+    }
   }
 
-  const handleReply = (entryId: string) => {
+  const handleReply = async (entryId: string) => {
     if (!replyText.trim()) return
-    setEntries(prev => prev.map(e => e.id === entryId
-      ? { ...e, replies: [...(e.replies || []), {
-          author: "Prof. María Castro",
-          role: "Docente",
-          date: new Date().toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" }),
-          time: new Date().toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" }),
-          content: replyText,
-          attachments: [],
-        }]}
-      : e
-    ))
-    setReplyText("")
-    setReplyingTo(null)
+    const raiz = entries.find(e => e.id === entryId)
+    if (!raiz) return
+    const tipoBackend = FRONT_TO_BACK[raiz.type]
+    if (!tipoBackend) return
+    setSubmitting(true)
+    setError(null)
+    try {
+      await bitacoraService.crear(alumnoId, {
+        tipo: tipoBackend,
+        descripcion: replyText,
+        entradaRaizId: Number(entryId),
+      })
+      setReplyText("")
+      setReplyingTo(null)
+      await cargar()
+    } catch (err) {
+      if (err instanceof AxiosError) {
+        setError(err.response?.data?.mensaje ?? err.message)
+      } else {
+        setError("Error inesperado al publicar la respuesta")
+      }
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const filteredEntries = activeFilter === "all"
@@ -499,7 +551,7 @@ export default function StudentRecord() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Link to={`/dashboard/estudiantes/${student.id}/perfil`}>
+          <Link to={`/dashboard/estudiantes/${id ?? student.id}/perfil`}>
             <Button variant="ghost" className="gap-2 text-[#6B7280] hover:text-[#1E3A5F]">
               <User size={16} />
               Ver perfil
@@ -714,6 +766,22 @@ export default function StudentRecord() {
               </div>
             </CardHeader>
             <CardContent>
+              {/* Estado de error de carga/publicación */}
+              {error && (
+                <div className="mb-4 p-3 rounded-lg bg-[#FEF2F2] border border-[#FECACA] text-sm text-[#B91C1C] flex items-start gap-2">
+                  <AlertCircle size={16} className="shrink-0 mt-0.5" />
+                  <span>{error}</span>
+                </div>
+              )}
+
+              {/* Estado de carga inicial */}
+              {isLoading && entries.length === 0 && (
+                <div className="mb-6 py-12 flex flex-col items-center text-center text-sm text-[#6B7280]">
+                  <div className="w-10 h-10 rounded-full border-2 border-[#E5E7EB] border-t-[#3B82F6] animate-spin mb-3" />
+                  Cargando bitácora…
+                </div>
+              )}
+
               {/* New Entry Form */}
               <div
                 className="mb-6 rounded-lg overflow-hidden transition-all duration-300 flex"
@@ -733,7 +801,12 @@ export default function StudentRecord() {
                 <div className="px-4 pt-4 pb-3 border-b border-[#E5E7EB]/60">
                   <p className="text-[10px] font-semibold text-[#9CA3AF] uppercase tracking-widest mb-2">Tipo de entrada</p>
                   <div className="flex flex-wrap gap-1.5">
-                    {ENTRY_TYPES.map(t => {
+                    {tiposVisibles.length === 0 && (
+                      <p className="text-xs text-[#9CA3AF] italic">
+                        Tu rol no permite crear entradas en la bitácora.
+                      </p>
+                    )}
+                    {tiposVisibles.map(t => {
                       const isSelected = entryForm.tipo === t.id
                       return (
                         <button
@@ -868,11 +941,11 @@ export default function StudentRecord() {
                     style={{
                       backgroundColor: selectedType ? selectedType.color.dot : "#1E3A5F",
                     }}
-                    disabled={!entryForm.tipo || !entryForm.contenido.trim()}
+                    disabled={!entryForm.tipo || !entryForm.contenido.trim() || submitting}
                     onClick={handlePublish}
                   >
                     <MessageSquare size={13} />
-                    Publicar entrada
+                    {submitting ? "Publicando…" : "Publicar entrada"}
                   </Button>
                 </div>
                 </div>
@@ -1025,11 +1098,11 @@ export default function StudentRecord() {
                                   <Button
                                     size="sm"
                                     onClick={() => handleReply(entry.id)}
-                                    disabled={!replyText.trim()}
+                                    disabled={!replyText.trim() || submitting}
                                     className="text-xs bg-[#1E3A5F] hover:bg-[#2D4A6F] text-white gap-1"
                                   >
                                     <MessageSquare size={12} />
-                                    Publicar respuesta
+                                    {submitting ? "Publicando…" : "Publicar respuesta"}
                                   </Button>
                                 </div>
                               </div>
@@ -1055,7 +1128,7 @@ export default function StudentRecord() {
                         Aún no hay entradas registradas para {student.name}. Selecciona un tipo de entrada arriba y publica la primera.
                       </p>
                       <div className="flex flex-wrap justify-center gap-2 max-w-sm">
-                        {ENTRY_TYPES.slice(0, 4).map(t => (
+                        {tiposVisibles.slice(0, 4).map(t => (
                           <button
                             key={t.id}
                             onClick={() => {
@@ -1077,7 +1150,7 @@ export default function StudentRecord() {
                       <div className="mt-8 pt-6 border-t border-[#F3F4F6] w-full max-w-sm">
                         <p className="text-[11px] text-[#9CA3AF] uppercase tracking-widest font-medium mb-3">Tipos de entrada disponibles</p>
                         <div className="grid grid-cols-2 gap-2 text-left">
-                          {ENTRY_TYPES.map(t => (
+                          {tiposVisibles.map(t => (
                             <div key={t.id} className="flex items-center gap-2 text-xs text-[#6B7280]">
                               <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: t.color.dot }} />
                               {t.label}
