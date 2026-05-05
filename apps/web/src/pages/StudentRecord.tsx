@@ -14,46 +14,25 @@ import { Separator } from "@/components/ui/separator"
 import { Link, useParams } from "react-router-dom"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
-import { bitacoraService } from "@/lib/api"
+import { alumnosService, bitacoraService, perfilDiscapacidadService } from "@/lib/api"
 import { useAuth } from "@/hooks/useAuth"
-import type { EntradaExpedienteResponse, TipoEntrada } from "@/types/api"
+import { useApiQuery } from "@/hooks/useApiQuery"
+import type { EntradaExpedienteResponse, TipoEntrada, TipoRol } from "@/types/api"
 import type { UserRole } from "@/types/auth"
 import { AxiosError } from "axios"
 
-// Mock student data
-const student = {
-  id: "1",
-  name: "Sofía Rodríguez Pérez",
-  grade: "3° Primaria",
-  age: 8,
-  birthDate: "15/03/2017",
-  status: "activo",
-  priority: false,
-  initials: "SR",
-  hearingLevel: "Hipoacusia severa bilateral",
-  hearingAid: "Audífono bilateral",
-  communicationMethod: "Lengua de Señas Peruana (LSP) + lectura labial",
-  school: "IE San Miguel",
-  teacher: "Prof. María Castro",
-  saanee: "Esp. Roberto Quispe",
+function calcularEdad(fechaNacimiento: string): number {
+  const nacimiento = new Date(fechaNacimiento)
+  const hoy = new Date()
+  let edad = hoy.getFullYear() - nacimiento.getFullYear()
+  const mes = hoy.getMonth() - nacimiento.getMonth()
+  if (mes < 0 || (mes === 0 && hoy.getDate() < nacimiento.getDate())) edad--
+  return edad
 }
 
-const familyContacts = [
-  {
-    name: "Elena Pérez de Rodríguez",
-    relation: "Madre",
-    phone: "+51 999 888 777",
-    email: "elena.perez@email.com",
-    primary: true,
-  },
-  {
-    name: "Juan Rodríguez Torres",
-    relation: "Padre",
-    phone: "+51 999 777 666",
-    email: "juan.rodriguez@email.com",
-    primary: false,
-  },
-]
+function iniciales(nombre: string, apellido: string): string {
+  return `${nombre.charAt(0)}${apellido.charAt(0)}`.toUpperCase()
+}
 
 type Attachment = {
   name: string
@@ -116,21 +95,12 @@ const TIPOS_POR_ROL: Record<UserRole, string[]> = {
   admin: [],
 }
 
-// Inferencia temporal del rol del autor a partir del tipo de entrada.
-// TODO: cuando el UsuarioSimpleResponse devuelva los roles, usar el rol real.
-function rolDelTipo(tipo: TipoEntrada): string {
-  switch (tipo) {
-    case "OBSERVACION_PEDAGOGICA":
-    case "INCIDENCIA_COMUNICACION":
-    case "APOYO_O_AJUSTE":
-      return "Docente"
-    case "COMUNICACION_FAMILIAR":
-      return "Familia"
-    case "FEEDBACK_SAANEE":
-      return "SAANEE"
-    default:
-      return "Usuario"
-  }
+// Etiqueta visible del rol del autor de una entrada.
+const LABEL_ROL: Record<TipoRol, string> = {
+  ADMIN: "Admin",
+  DOCENTE: "Docente",
+  PADRE: "Familia",
+  SAANEE: "SAANEE",
 }
 
 function formatearFecha(iso: string): { date: string; time: string } {
@@ -141,8 +111,9 @@ function formatearFecha(iso: string): { date: string; time: string } {
   }
 }
 
-function tituloDerivado(e: EntradaExpedienteResponse): string {
-  const primeraLinea = e.descripcion.split("\n")[0]
+// Fallback cuando una entrada no tiene título: primera línea de la descripción truncada.
+function tituloFallback(descripcion: string): string {
+  const primeraLinea = descripcion.split("\n")[0]
   return primeraLinea.length > 80 ? primeraLinea.slice(0, 77) + "…" : primeraLinea
 }
 
@@ -150,7 +121,7 @@ function toReply(e: EntradaExpedienteResponse): Reply {
   const { date, time } = formatearFecha(e.fecha)
   return {
     author: `${e.autor.nombre} ${e.autor.apellido}`,
-    role: rolDelTipo(e.tipo),
+    role: LABEL_ROL[e.autor.rol] ?? "Usuario",
     date,
     time,
     content: e.descripcion,
@@ -165,9 +136,9 @@ function toUiEntry(e: EntradaExpedienteResponse, replies: EntradaExpedienteRespo
     date,
     time,
     author: `${e.autor.nombre} ${e.autor.apellido}`,
-    role: rolDelTipo(e.tipo),
+    role: LABEL_ROL[e.autor.rol] ?? "Usuario",
     type: BACK_TO_FRONT[e.tipo],
-    title: tituloDerivado(e),
+    title: e.titulo ?? tituloFallback(e.descripcion),
     content: e.descripcion,
     attachments: [],
     replies: replies
@@ -416,6 +387,12 @@ export default function StudentRecord() {
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
+  // --- Carga del alumno y perfil de discapacidad (header del expediente) ---
+  const fetchAlumno = useCallback(() => alumnosService.obtener(alumnoId), [alumnoId])
+  const fetchPerfil = useCallback(() => perfilDiscapacidadService.obtener(alumnoId), [alumnoId])
+  const { data: alumno, isLoading: loadingAlumno } = useApiQuery(fetchAlumno)
+  const { data: perfil } = useApiQuery(fetchPerfil)
+
   // New entry form state
   const [entryForm, setEntryForm] = useState({
     tipo: "",
@@ -477,6 +454,7 @@ export default function StudentRecord() {
     try {
       await bitacoraService.crear(alumnoId, {
         tipo: tipoBackend,
+        titulo: entryForm.titulo.trim() || null,
         descripcion: entryForm.contenido,
         nivelImportancia: entryForm.importancia || null,
         severidad: entryForm.severidad || null,
@@ -527,6 +505,26 @@ export default function StudentRecord() {
     ? entries
     : entries.filter(e => e.type === activeFilter)
 
+  if (loadingAlumno) {
+    return (
+      <div className="p-6 flex items-center justify-center">
+        <p className="text-[#6B7280]">Cargando expediente del estudiante...</p>
+      </div>
+    )
+  }
+  if (!alumno) {
+    return (
+      <div className="p-6 flex items-center justify-center">
+        <p className="text-[#DC2626]">No se encontró el estudiante.</p>
+      </div>
+    )
+  }
+
+  const initialsAlumno = iniciales(alumno.nombre, alumno.apellido)
+  const edad = calcularEdad(alumno.fechaNacimiento)
+  const docentes = alumno.docentes ?? []
+  const padres = alumno.padres ?? []
+
   return (
     <div className="p-6 space-y-6">
       {/* Back button and header */}
@@ -538,20 +536,20 @@ export default function StudentRecord() {
         </Link>
         <div className="flex-1">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-[#1E3A5F]">{student.name}</h1>
+            <h1 className="text-2xl font-bold text-[#1E3A5F]">{alumno.nombre} {alumno.apellido}</h1>
             <Badge
               variant="outline"
-              className="text-xs border-[#10B981] text-[#059669] bg-[#D1FAE5]"
+              className={`text-xs ${alumno.estado === "ACTIVO" ? "border-[#10B981] text-[#059669] bg-[#D1FAE5]" : "border-[#D1D5DB] text-[#6B7280] bg-[#F3F4F6]"}`}
             >
-              Activo
+              {alumno.estado === "ACTIVO" ? "Activo" : "Inactivo"}
             </Badge>
           </div>
           <p className="text-sm text-[#6B7280]">
-            {student.grade} · {student.school}
+            {alumno.grado} · Sección {alumno.seccion}
           </p>
         </div>
         <div className="flex gap-2">
-          <Link to={`/dashboard/estudiantes/${id ?? student.id}/perfil`}>
+          <Link to={`/dashboard/estudiantes/${id ?? alumno.id}/perfil`}>
             <Button variant="ghost" className="gap-2 text-[#6B7280] hover:text-[#1E3A5F]">
               <User size={16} />
               Ver perfil
@@ -577,12 +575,12 @@ export default function StudentRecord() {
               <div className="flex items-center gap-4 mb-4">
                 <Avatar className="h-16 w-16">
                   <AvatarFallback className="bg-[#EEF2FF] text-[#3B82F6] text-xl font-semibold">
-                    {student.initials}
+                    {initialsAlumno}
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <p className="font-semibold text-[#1E3A5F]">{student.name}</p>
-                  <p className="text-sm text-[#6B7280]">{student.age} años · {student.birthDate}</p>
+                  <p className="font-semibold text-[#1E3A5F]">{alumno.nombre} {alumno.apellido}</p>
+                  <p className="text-sm text-[#6B7280]">{edad} años · {alumno.fechaNacimiento}</p>
                 </div>
               </div>
 
@@ -591,22 +589,18 @@ export default function StudentRecord() {
               <div className="space-y-3">
                 <div>
                   <p className="text-xs font-medium text-[#9CA3AF] uppercase tracking-wide mb-1">
-                    Nivel auditivo
+                    Modo de comunicación
                   </p>
-                  <p className="text-sm text-[#374151]">{student.hearingLevel}</p>
+                  <p className="text-sm text-[#374151]">{perfil?.modoComunicacionPreferido || "—"}</p>
                 </div>
-                <div>
-                  <p className="text-xs font-medium text-[#9CA3AF] uppercase tracking-wide mb-1">
-                    Dispositivo
-                  </p>
-                  <p className="text-sm text-[#374151]">{student.hearingAid}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-[#9CA3AF] uppercase tracking-wide mb-1">
-                    Comunicación
-                  </p>
-                  <p className="text-sm text-[#374151]">{student.communicationMethod}</p>
-                </div>
+                {perfil?.observacionesGenerales && (
+                  <div>
+                    <p className="text-xs font-medium text-[#9CA3AF] uppercase tracking-wide mb-1">
+                      Observaciones generales
+                    </p>
+                    <p className="text-sm text-[#374151]">{perfil.observacionesGenerales}</p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -620,24 +614,31 @@ export default function StudentRecord() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-[#3B82F6] flex items-center justify-center">
-                  <span className="text-xs text-white font-semibold">MC</span>
+              {docentes.length === 0 && padres.length === 0 && (
+                <p className="text-xs text-[#9CA3AF] italic">Sin equipo asignado.</p>
+              )}
+              {docentes.map((d) => (
+                <div key={`doc-${d.id}`} className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-[#3B82F6] flex items-center justify-center">
+                    <span className="text-xs text-white font-semibold">{iniciales(d.nombre, d.apellido)}</span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-[#374151]">{d.nombre} {d.apellido}</p>
+                    <p className="text-xs text-[#6B7280]">Docente</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-[#374151]">{student.teacher}</p>
-                  <p className="text-xs text-[#6B7280]">Docente</p>
+              ))}
+              {padres.map((p) => (
+                <div key={`pad-${p.id}`} className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-[#8B5CF6] flex items-center justify-center">
+                    <span className="text-xs text-white font-semibold">{iniciales(p.nombre, p.apellido)}</span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-[#374151]">{p.nombre} {p.apellido}</p>
+                    <p className="text-xs text-[#6B7280]">Familia</p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-[#8B5CF6] flex items-center justify-center">
-                  <span className="text-xs text-white font-semibold">RQ</span>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-[#374151]">{student.saanee}</p>
-                  <p className="text-xs text-[#6B7280]">Especialista SAANEE</p>
-                </div>
-              </div>
+              ))}
             </CardContent>
           </Card>
 
@@ -650,29 +651,26 @@ export default function StudentRecord() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {familyContacts.map((contact, idx) => (
-                <div key={idx} className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-[#374151]">{contact.name}</p>
-                    {contact.primary && (
-                      <Badge variant="outline" className="text-[10px] border-[#3B82F6] text-[#3B82F6]">
-                        Principal
-                      </Badge>
+              {padres.length === 0 ? (
+                <p className="text-xs text-[#9CA3AF] italic">Sin contactos familiares registrados.</p>
+              ) : (
+                padres.map((p) => (
+                  <div key={p.id} className="space-y-1">
+                    <p className="text-sm font-medium text-[#374151]">{p.nombre} {p.apellido}</p>
+                    <p className="text-xs text-[#6B7280]">Familia</p>
+                    {p.telefono && (
+                      <div className="flex items-center gap-1 text-xs text-[#6B7280]">
+                        <Phone size={12} />
+                        {p.telefono}
+                      </div>
                     )}
+                    <div className="flex items-center gap-1 text-xs text-[#6B7280]">
+                      <Mail size={12} />
+                      {p.correo}
+                    </div>
                   </div>
-                  <p className="text-xs text-[#6B7280]">{contact.relation}</p>
-                  <div className="flex items-center gap-4 text-xs text-[#6B7280]">
-                    <span className="flex items-center gap-1">
-                      <Phone size={12} />
-                      {contact.phone}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1 text-xs text-[#6B7280]">
-                    <Mail size={12} />
-                    {contact.email}
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </CardContent>
           </Card>
 
@@ -1125,7 +1123,7 @@ export default function StudentRecord() {
                         La bitácora está vacía
                       </h3>
                       <p className="text-sm text-[#6B7280] leading-relaxed max-w-xs mb-6">
-                        Aún no hay entradas registradas para {student.name}. Selecciona un tipo de entrada arriba y publica la primera.
+                        Aún no hay entradas registradas para {alumno.nombre} {alumno.apellido}. Selecciona un tipo de entrada arriba y publica la primera.
                       </p>
                       <div className="flex flex-wrap justify-center gap-2 max-w-sm">
                         {tiposVisibles.slice(0, 4).map(t => (

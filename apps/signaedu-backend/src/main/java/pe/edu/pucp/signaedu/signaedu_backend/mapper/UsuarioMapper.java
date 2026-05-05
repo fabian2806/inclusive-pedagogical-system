@@ -1,6 +1,7 @@
 package pe.edu.pucp.signaedu.signaedu_backend.mapper;
 
 import org.springframework.stereotype.Component;
+import pe.edu.pucp.signaedu.signaedu_backend.dto.response.UsuarioBitacoraResponse;
 import pe.edu.pucp.signaedu.signaedu_backend.dto.response.UsuarioResponse;
 import pe.edu.pucp.signaedu.signaedu_backend.dto.response.UsuarioSimpleResponse;
 import pe.edu.pucp.signaedu.signaedu_backend.model.Rol;
@@ -35,6 +36,21 @@ public class UsuarioMapper {
                 .apellido(usuario.getApellido())
                 .correo(usuario.getCorreo())
                 .telefono(usuario.getTelefono())
+                .build();
+    }
+
+    public UsuarioBitacoraResponse toBitacoraResponse(Usuario usuario) {
+        String rol = usuario.getRoles().stream()
+                .map(Rol::getNombre)
+                .map(Enum::name)
+                .findFirst()
+                .orElse(null);
+
+        return UsuarioBitacoraResponse.builder()
+                .id(usuario.getId())
+                .nombre(usuario.getNombre())
+                .apellido(usuario.getApellido())
+                .rol(rol)
                 .build();
     }
 }

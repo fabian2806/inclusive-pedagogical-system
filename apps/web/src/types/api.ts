@@ -189,8 +189,16 @@ export type TipoEntrada =
   | 'DOCUMENTO_ADJUNTADO'
   | 'FEEDBACK_SAANEE'
 
+export interface UsuarioBitacoraResponse {
+  id: number
+  nombre: string
+  apellido: string
+  rol: TipoRol
+}
+
 export interface EntradaExpedienteRequest {
   tipo: TipoEntrada
+  titulo?: string | null
   descripcion: string
   entradaRaizId?: number | null
   nivelImportancia?: string | null
@@ -203,12 +211,13 @@ export interface EntradaExpedienteResponse {
   id: number
   expedienteId: number
   tipo: TipoEntrada
-  autor: UsuarioSimpleResponse
+  autor: UsuarioBitacoraResponse
   fecha: string
+  titulo: string | null
   descripcion: string
   entradaRaizId: number | null
   nivelImportancia: string | null
-  dirigidoA: UsuarioSimpleResponse | null
+  dirigidoA: UsuarioBitacoraResponse | null
   severidad: string | null
   resultado: string | null
 }

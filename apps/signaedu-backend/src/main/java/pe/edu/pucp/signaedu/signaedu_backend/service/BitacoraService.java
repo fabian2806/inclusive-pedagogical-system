@@ -76,6 +76,7 @@ public class BitacoraService {
                 .tipoEntrada(request.getTipo())
                 .usuario(autor)
                 .fecha(LocalDateTime.now())
+                .titulo(request.getTitulo())
                 .descripcion(request.getDescripcion())
                 .entradaRaiz(raiz)
                 .nivelImportancia(request.getNivelImportancia())

@@ -18,6 +18,9 @@ public class EntradaExpedienteRequest {
     @NotNull(message = "El tipo de entrada es obligatorio")
     private TipoEntrada tipo;
 
+    @Size(max = 150, message = "El título no puede superar 150 caracteres")
+    private String titulo;
+
     @NotBlank(message = "La descripción es obligatoria")
     private String descripcion;
 

@@ -17,12 +17,13 @@ public class EntradaExpedienteResponse {
     private Long id;
     private Long expedienteId;
     private String tipo;
-    private UsuarioSimpleResponse autor;
+    private UsuarioBitacoraResponse autor;
     private LocalDateTime fecha;
+    private String titulo;
     private String descripcion;
     private Long entradaRaizId;
     private String nivelImportancia;
-    private UsuarioSimpleResponse dirigidoA;
+    private UsuarioBitacoraResponse dirigidoA;
     private String severidad;
     private String resultado;
 }

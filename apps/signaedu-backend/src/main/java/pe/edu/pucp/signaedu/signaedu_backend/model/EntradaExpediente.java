@@ -36,6 +36,9 @@ public class EntradaExpediente {
     @Column(nullable = false)
     private LocalDateTime fecha;
 
+    @Column(length = 150)
+    private String titulo;
+
     @Column(nullable = false, columnDefinition = "TEXT")
     private String descripcion;
 
