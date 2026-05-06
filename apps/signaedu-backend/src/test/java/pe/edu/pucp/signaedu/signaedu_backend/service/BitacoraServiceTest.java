@@ -21,8 +21,10 @@ import pe.edu.pucp.signaedu.signaedu_backend.mapper.EntradaExpedienteMapper;
 import pe.edu.pucp.signaedu.signaedu_backend.model.Alumno;
 import pe.edu.pucp.signaedu.signaedu_backend.model.EntradaExpediente;
 import pe.edu.pucp.signaedu.signaedu_backend.model.Expediente;
+import pe.edu.pucp.signaedu.signaedu_backend.model.Indicador;
 import pe.edu.pucp.signaedu.signaedu_backend.model.Rol;
 import pe.edu.pucp.signaedu.signaedu_backend.model.Usuario;
+import pe.edu.pucp.signaedu.signaedu_backend.model.enums.AreaCurricular;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.EstadoAlumno;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.EstadoExpediente;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.TipoEntrada;
@@ -30,6 +32,7 @@ import pe.edu.pucp.signaedu.signaedu_backend.model.enums.TipoRol;
 import pe.edu.pucp.signaedu.signaedu_backend.repository.AlumnoRepository;
 import pe.edu.pucp.signaedu.signaedu_backend.repository.EntradaExpedienteRepository;
 import pe.edu.pucp.signaedu.signaedu_backend.repository.ExpedienteRepository;
+import pe.edu.pucp.signaedu.signaedu_backend.repository.IndicadorRepository;
 import pe.edu.pucp.signaedu.signaedu_backend.repository.UsuarioRepository;
 
 import java.time.LocalDate;
@@ -68,6 +71,9 @@ class BitacoraServiceTest {
 
     @Mock
     private UsuarioRepository usuarioRepository;
+
+    @Mock
+    private IndicadorRepository indicadorRepository;
 
     @Mock
     private ConfiguracionService configuracionService;
@@ -226,11 +232,13 @@ class BitacoraServiceTest {
 
     @Test
     void debeRechazarTipoDiferidoAFaseFutura() {
+        // EVALUACION_INDICADOR ya está habilitado en Fase 2c.
+        // Los tipos aún diferidos son EVENTO_AGENDA (Fase 3) y DOCUMENTO_ADJUNTADO (Fase 2d).
         stubAccesoDocenteAsignado();
         stubExpedienteVigente();
 
         assertThatThrownBy(() -> bitacoraService.crear(
-                ALUMNO_ID, request(TipoEntrada.EVALUACION_INDICADOR)))
+                ALUMNO_ID, request(TipoEntrada.EVENTO_AGENDA)))
                 .isInstanceOf(IllegalOperationException.class)
                 .hasMessageContaining("no está disponible en esta fase");
     }
@@ -429,5 +437,96 @@ class BitacoraServiceTest {
 
         verify(entradaRepository).findAll(any(Specification.class),
                 eq(Sort.by(Sort.Direction.DESC, "fecha")));
+    }
+
+    // ---------- crear: EVALUACION_INDICADOR (Fase 2c) ----------
+    // Cierra deuda técnica de Fase 2b sobre validación cruzada tipo→indicadorId.
+
+    private Indicador indicador(Long id, boolean activo) {
+        return Indicador.builder()
+                .id(id)
+                .nombre("Comprensión LSP")
+                .areaCurricular(AreaCurricular.COMUNICACION)
+                .usuarioCreador(usuarioConRol(TipoRol.DOCENTE))
+                .activo(activo)
+                .build();
+    }
+
+    private EntradaExpedienteRequest evaluacionRequest(Long indicadorId, Boolean resultadoLogrado) {
+        EntradaExpedienteRequest req = request(TipoEntrada.EVALUACION_INDICADOR);
+        req.setIndicadorId(indicadorId);
+        req.setResultadoLogrado(resultadoLogrado);
+        return req;
+    }
+
+    @Test
+    void docenteDebeCrearEvaluacionConIndicadorActivo() {
+        stubAccesoDocenteAsignado();
+        stubExpedienteVigente();
+        stubGuardadoYRespuesta();
+        when(indicadorRepository.findById(99L))
+                .thenReturn(Optional.of(indicador(99L, true)));
+
+        EntradaExpedienteResponse response = bitacoraService.crear(
+                ALUMNO_ID, evaluacionRequest(99L, true));
+
+        assertThat(response).isNotNull();
+        verify(entradaRepository).save(any(EntradaExpediente.class));
+    }
+
+    @Test
+    void debeRechazarEvaluacionSinIndicadorId() {
+        stubAccesoDocenteAsignado();
+        stubExpedienteVigente();
+
+        assertThatThrownBy(() -> bitacoraService.crear(
+                ALUMNO_ID, evaluacionRequest(null, true)))
+                .isInstanceOf(IllegalOperationException.class)
+                .hasMessageContaining("indicadorId es obligatorio");
+
+        verify(entradaRepository, never()).save(any());
+    }
+
+    @Test
+    void debeRechazarEvaluacionConIndicadorInactivo() {
+        stubAccesoDocenteAsignado();
+        stubExpedienteVigente();
+        when(indicadorRepository.findById(99L))
+                .thenReturn(Optional.of(indicador(99L, false)));
+
+        assertThatThrownBy(() -> bitacoraService.crear(
+                ALUMNO_ID, evaluacionRequest(99L, true)))
+                .isInstanceOf(IllegalOperationException.class)
+                .hasMessageContaining("indicador inactivo");
+
+        verify(entradaRepository, never()).save(any());
+    }
+
+    @Test
+    void debeRechazarEvaluacionConIndicadorInexistente() {
+        stubAccesoDocenteAsignado();
+        stubExpedienteVigente();
+        when(indicadorRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> bitacoraService.crear(
+                ALUMNO_ID, evaluacionRequest(99L, true)))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        verify(entradaRepository, never()).save(any());
+    }
+
+    @Test
+    void debeRechazarOtroTipoConIndicadorId() {
+        stubAccesoDocenteAsignado();
+        stubExpedienteVigente();
+
+        EntradaExpedienteRequest req = request(TipoEntrada.OBSERVACION_PEDAGOGICA);
+        req.setIndicadorId(99L);
+
+        assertThatThrownBy(() -> bitacoraService.crear(ALUMNO_ID, req))
+                .isInstanceOf(IllegalOperationException.class)
+                .hasMessageContaining("indicadorId solo se permite");
+
+        verify(entradaRepository, never()).save(any());
     }
 }
