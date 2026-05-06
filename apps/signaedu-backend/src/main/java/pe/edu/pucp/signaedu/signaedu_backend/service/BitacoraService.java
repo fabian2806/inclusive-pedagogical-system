@@ -14,6 +14,7 @@ import pe.edu.pucp.signaedu.signaedu_backend.exception.ResourceNotFoundException
 import pe.edu.pucp.signaedu.signaedu_backend.mapper.EntradaExpedienteMapper;
 import pe.edu.pucp.signaedu.signaedu_backend.model.EntradaExpediente;
 import pe.edu.pucp.signaedu.signaedu_backend.model.Expediente;
+import pe.edu.pucp.signaedu.signaedu_backend.model.Indicador;
 import pe.edu.pucp.signaedu.signaedu_backend.model.Usuario;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.EstadoExpediente;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.TipoEntrada;
@@ -21,6 +22,7 @@ import pe.edu.pucp.signaedu.signaedu_backend.model.enums.TipoRol;
 import pe.edu.pucp.signaedu.signaedu_backend.repository.AlumnoRepository;
 import pe.edu.pucp.signaedu.signaedu_backend.repository.EntradaExpedienteRepository;
 import pe.edu.pucp.signaedu.signaedu_backend.repository.ExpedienteRepository;
+import pe.edu.pucp.signaedu.signaedu_backend.repository.IndicadorRepository;
 import pe.edu.pucp.signaedu.signaedu_backend.repository.UsuarioRepository;
 import pe.edu.pucp.signaedu.signaedu_backend.repository.specs.EntradaExpedienteSpecs;
 
@@ -39,13 +41,13 @@ public class BitacoraService {
             TipoRol.DOCENTE, EnumSet.of(
                     TipoEntrada.OBSERVACION_PEDAGOGICA,
                     TipoEntrada.INCIDENCIA_COMUNICACION,
-                    TipoEntrada.APOYO_O_AJUSTE),
+                    TipoEntrada.APOYO_O_AJUSTE,
+                    TipoEntrada.EVALUACION_INDICADOR),
             TipoRol.PADRE, EnumSet.of(TipoEntrada.COMUNICACION_FAMILIAR),
             TipoRol.SAANEE, EnumSet.of(TipoEntrada.FEEDBACK_SAANEE)
     );
 
     private static final Set<TipoEntrada> TIPOS_DIFERIDOS = EnumSet.of(
-            TipoEntrada.EVALUACION_INDICADOR,
             TipoEntrada.EVENTO_AGENDA,
             TipoEntrada.DOCUMENTO_ADJUNTADO
     );
@@ -54,6 +56,7 @@ public class BitacoraService {
     private final ExpedienteRepository expedienteRepository;
     private final AlumnoRepository alumnoRepository;
     private final UsuarioRepository usuarioRepository;
+    private final IndicadorRepository indicadorRepository;
     private final ConfiguracionService configuracionService;
     private final EntradaExpedienteMapper mapper;
 
@@ -64,6 +67,7 @@ public class BitacoraService {
 
         EntradaExpediente raiz = cargarYValidarRaiz(request.getEntradaRaizId(), expediente);
         validarTipoPermitido(request.getTipo(), autor, raiz);
+        Indicador indicador = validarYCargarIndicador(request, raiz);
 
         // dirigidoAUsuarioId se persiste tal cual; no se valida (campo informativo, sin lógica activa).
         // Si el id no existe, la FK de Postgres rechazará el INSERT.
@@ -83,6 +87,8 @@ public class BitacoraService {
                 .dirigidoA(dirigidoA)
                 .severidad(request.getSeveridad())
                 .resultado(request.getResultado())
+                .indicador(indicador)
+                .resultadoLogrado(request.getResultadoLogrado())
                 .build();
 
         return mapper.toResponse(entradaRepository.save(entrada));
@@ -141,6 +147,35 @@ public class BitacoraService {
         }
 
         return raiz;
+    }
+
+    private Indicador validarYCargarIndicador(EntradaExpedienteRequest request, EntradaExpediente raiz) {
+        boolean esEvaluacionRaiz = raiz == null && request.getTipo() == TipoEntrada.EVALUACION_INDICADOR;
+
+        if (esEvaluacionRaiz) {
+            if (request.getIndicadorId() == null) {
+                throw new IllegalOperationException(
+                        "El indicadorId es obligatorio para entradas de tipo EVALUACION_INDICADOR");
+            }
+            Indicador indicador = indicadorRepository.findById(request.getIndicadorId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Indicador", "id", request.getIndicadorId()));
+            if (!Boolean.TRUE.equals(indicador.getActivo())) {
+                throw new IllegalOperationException(
+                        "No se puede evaluar un indicador inactivo");
+            }
+            return indicador;
+        }
+
+        if (request.getIndicadorId() != null) {
+            throw new IllegalOperationException(
+                    "indicadorId solo se permite en entradas raíz de tipo EVALUACION_INDICADOR");
+        }
+        if (request.getResultadoLogrado() != null) {
+            throw new IllegalOperationException(
+                    "resultadoLogrado solo se permite en entradas raíz de tipo EVALUACION_INDICADOR");
+        }
+        return null;
     }
 
     private void validarTipoPermitido(TipoEntrada tipo, Usuario autor, EntradaExpediente raiz) {
