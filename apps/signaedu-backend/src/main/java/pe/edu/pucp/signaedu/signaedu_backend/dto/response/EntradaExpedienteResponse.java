@@ -26,4 +26,6 @@ public class EntradaExpedienteResponse {
     private UsuarioBitacoraResponse dirigidoA;
     private String severidad;
     private String resultado;
+    private IndicadorBitacoraResponse indicador;
+    private Boolean resultadoLogrado;
 }

@@ -58,4 +58,11 @@ public class EntradaExpediente {
 
     @Column(columnDefinition = "TEXT")
     private String resultado;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "indicador_id")
+    private Indicador indicador;
+
+    @Column(name = "resultado_logrado")
+    private Boolean resultadoLogrado;
 }

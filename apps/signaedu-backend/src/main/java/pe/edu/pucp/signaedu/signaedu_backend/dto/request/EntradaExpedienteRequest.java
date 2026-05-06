@@ -35,4 +35,8 @@ public class EntradaExpedienteRequest {
     private String severidad;
 
     private String resultado;
+
+    private Long indicadorId;
+
+    private Boolean resultadoLogrado;
 }
