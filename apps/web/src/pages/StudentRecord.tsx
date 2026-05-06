@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useParams } from "react-router-dom"
-import { alumnosService, bitacoraService, perfilDiscapacidadService } from "@/lib/api"
+import { alumnosService, bitacoraService, indicadoresService, perfilDiscapacidadService } from "@/lib/api"
 import { useAuth } from "@/hooks/useAuth"
 import { useApiQuery } from "@/hooks/useApiQuery"
 import {
@@ -15,6 +15,7 @@ import {
   agruparHilos,
 } from "@/lib/bitacora"
 import { ENTRY_TYPES } from "@/lib/bitacora-ui"
+import type { IndicadorResponse } from "@/types/api"
 import type { BitacoraEntry } from "@/types/bitacora"
 import { ExpedienteHeader } from "@/components/record/ExpedienteHeader"
 import { PerfilCard } from "@/components/record/PerfilCard"
@@ -48,6 +49,17 @@ export default function StudentRecord() {
   const { data: alumno, isLoading: loadingAlumno } = useApiQuery(fetchAlumno)
   const { data: perfil } = useApiQuery(fetchPerfil)
 
+  // Indicadores activos: solo el docente los necesita (es el único rol que puede crear EVALUACION_INDICADOR).
+  // Para otros roles devolvemos lista vacía y evitamos el round-trip.
+  const fetchIndicadoresActivos = useCallback(
+    () =>
+      user?.rol === "docente"
+        ? indicadoresService.listar({ activo: true })
+        : Promise.resolve<IndicadorResponse[]>([]),
+    [user?.rol],
+  )
+  const { data: indicadoresActivos } = useApiQuery(fetchIndicadoresActivos)
+
   // New entry form state
   const [entryForm, setEntryForm] = useState<EntryFormState>({
     tipo: "",
@@ -58,6 +70,7 @@ export default function StudentRecord() {
     indicadorId: "",
     eventoId: "",
     resultado: "",
+    resultadoLogrado: "",
   })
 
   const selectedType = ENTRY_TYPES.find(t => t.id === entryForm.tipo)
@@ -104,6 +117,18 @@ export default function StudentRecord() {
     if (!entryForm.tipo || !entryForm.contenido.trim()) return
     const tipoBackend = FRONT_TO_BACK[entryForm.tipo]
     if (!tipoBackend) return
+
+    const esEvaluacion = entryForm.tipo === "evaluacion_indicador"
+    if (esEvaluacion && !entryForm.indicadorId) return
+
+    const resultadoLogrado = !esEvaluacion
+      ? null
+      : entryForm.resultadoLogrado === "true"
+        ? true
+        : entryForm.resultadoLogrado === "false"
+          ? false
+          : null
+
     setSubmitting(true)
     setError(null)
     try {
@@ -114,8 +139,20 @@ export default function StudentRecord() {
         nivelImportancia: entryForm.importancia || null,
         severidad: entryForm.severidad || null,
         resultado: entryForm.resultado || null,
+        indicadorId: esEvaluacion ? Number(entryForm.indicadorId) : null,
+        resultadoLogrado,
       })
-      setEntryForm({ tipo: "", titulo: "", contenido: "", importancia: "", severidad: "", indicadorId: "", eventoId: "", resultado: "" })
+      setEntryForm({
+        tipo: "",
+        titulo: "",
+        contenido: "",
+        importancia: "",
+        severidad: "",
+        indicadorId: "",
+        eventoId: "",
+        resultado: "",
+        resultadoLogrado: "",
+      })
       await cargar()
     } catch (err) {
       if (err instanceof AxiosError) {
@@ -234,6 +271,7 @@ export default function StudentRecord() {
               entryForm={entryForm}
               setEntryForm={setEntryForm}
               selectedType={selectedType}
+              indicadoresActivos={indicadoresActivos ?? []}
               onPublish={handlePublish}
               replyingTo={replyingTo}
               startReply={(id) => { setReplyingTo(id); setReplyText("") }}

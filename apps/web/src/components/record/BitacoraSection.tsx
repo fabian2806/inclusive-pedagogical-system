@@ -1,6 +1,7 @@
 import { AlertCircle, FileText } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { EntryTypeConfig } from "@/lib/bitacora-ui"
+import type { IndicadorResponse } from "@/types/api"
 import type { BitacoraEntry } from "@/types/bitacora"
 import { BitacoraEntryForm, type EntryFormState } from "./BitacoraEntryForm"
 import { BitacoraEntryCard } from "./BitacoraEntryCard"
@@ -29,6 +30,7 @@ interface Props {
   entryForm: EntryFormState
   setEntryForm: React.Dispatch<React.SetStateAction<EntryFormState>>
   selectedType: EntryTypeConfig | undefined
+  indicadoresActivos: IndicadorResponse[]
   onPublish: () => void
   // reply
   replyingTo: string | null
@@ -52,6 +54,7 @@ export function BitacoraSection({
   entryForm,
   setEntryForm,
   selectedType,
+  indicadoresActivos,
   onPublish,
   replyingTo,
   startReply,
@@ -106,6 +109,7 @@ export function BitacoraSection({
           entryForm={entryForm}
           setEntryForm={setEntryForm}
           selectedType={selectedType}
+          indicadoresActivos={indicadoresActivos}
           submitting={submitting}
           onPublish={onPublish}
         />

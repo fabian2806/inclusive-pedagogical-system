@@ -1,6 +1,8 @@
 // Tipos UI de la bitácora.
 // Forma local del frontend; el shape del backend vive en `types/api.ts`.
 
+import type { IndicadorBitacoraResponse } from "./api"
+
 export type Attachment = {
   name: string
   size: string
@@ -29,4 +31,6 @@ export type BitacoraEntry = {
   importancia?: string
   severidad?: string
   resultado?: string
+  indicador?: IndicadorBitacoraResponse
+  resultadoLogrado?: boolean | null
 }

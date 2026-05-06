@@ -1,9 +1,17 @@
-import { Clock, MessageSquare, Paperclip, X } from "lucide-react"
+import { CheckCircle2, Clock, MessageSquare, Paperclip, Target, X, XCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { getEntryTypeColor, getRoleColor } from "@/lib/bitacora-ui"
 import type { Attachment, BitacoraEntry, Reply } from "@/types/bitacora"
+
+const AREA_LABEL: Record<string, string> = {
+  COMUNICACION: "Comunicación",
+  MATEMATICA: "Matemática",
+  ED_FISICA: "Ed. Física",
+  PERSONAL_SOCIAL: "Personal Social",
+  OTRO: "Otro",
+}
 
 interface Props {
   entry: BitacoraEntry
@@ -145,6 +153,44 @@ export function BitacoraEntryCard({
             </div>
 
             <p className="text-sm text-[#374151] leading-relaxed mb-3">{entry.content}</p>
+
+            {entry.indicador && (
+              <div className="mb-3 p-3 rounded-md bg-white/70 border border-[#E5E7EB] flex items-start gap-2">
+                <Target size={14} className="text-[#7C3AED] mt-0.5 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-medium text-[#1E3A5F]">{entry.indicador.nombre}</p>
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] bg-[#F5F3FF] text-[#7C3AED] border-[#C4B5FD]"
+                    >
+                      {AREA_LABEL[entry.indicador.areaCurricular] ?? entry.indicador.areaCurricular}
+                    </Badge>
+                    {entry.indicador.categoria && (
+                      <span className="text-[10px] text-[#6B7280]">· {entry.indicador.categoria}</span>
+                    )}
+                    {entry.resultadoLogrado === true && (
+                      <Badge variant="outline" className="text-[10px] bg-[#D1FAE5] text-[#059669] border-[#10B981] gap-1">
+                        <CheckCircle2 size={10} /> Logrado
+                      </Badge>
+                    )}
+                    {entry.resultadoLogrado === false && (
+                      <Badge variant="outline" className="text-[10px] bg-[#FEE2E2] text-[#DC2626] border-[#EF4444] gap-1">
+                        <XCircle size={10} /> No logrado
+                      </Badge>
+                    )}
+                    {entry.resultadoLogrado == null && (
+                      <Badge variant="outline" className="text-[10px] text-[#6B7280] border-[#D1D5DB]">
+                        Resultado pendiente
+                      </Badge>
+                    )}
+                  </div>
+                  {entry.indicador.descripcion && (
+                    <p className="text-xs text-[#6B7280] mt-0.5 line-clamp-2">{entry.indicador.descripcion}</p>
+                  )}
+                </div>
+              </div>
+            )}
 
             {entry.attachments.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-3">

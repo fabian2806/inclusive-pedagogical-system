@@ -9,18 +9,19 @@ export interface EntryTypeConfig {
   hasIndicador: boolean
   hasEvento: boolean
   hasResultado: boolean
+  hasResultadoLogrado: boolean
   color: { bg: string; border: string; text: string; dot: string }
 }
 
 export const ENTRY_TYPES: EntryTypeConfig[] = [
-  { id: "observacion_pe",        label: "Obs. Pedagógica",   short: "OBS", hasImportancia: true,  hasSeveridad: true,  hasIndicador: false, hasEvento: false, hasResultado: false, color: { bg: "#EFF6FF", border: "#93C5FD", text: "#2563EB", dot: "#3B82F6" } },
-  { id: "comunicacion_familiar", label: "Comunicación Fam.", short: "COM", hasImportancia: true,  hasSeveridad: true,  hasIndicador: false, hasEvento: false, hasResultado: false, color: { bg: "#F0F9FF", border: "#7DD3FC", text: "#0284C7", dot: "#0EA5E9" } },
-  { id: "incidencia",            label: "Incidencia",        short: "INC", hasImportancia: false, hasSeveridad: true,  hasIndicador: false, hasEvento: false, hasResultado: true,  color: { bg: "#FEF2F2", border: "#FCA5A5", text: "#DC2626", dot: "#EF4444" } },
-  { id: "apoyo_ajuste",          label: "Apoyo o Ajuste",    short: "APO", hasImportancia: false, hasSeveridad: false, hasIndicador: false, hasEvento: false, hasResultado: false, color: { bg: "#ECFDF5", border: "#6EE7B7", text: "#059669", dot: "#10B981" } },
-  { id: "evaluacion_indicador",  label: "Eval. Indicador",   short: "EVA", hasImportancia: false, hasSeveridad: false, hasIndicador: true,  hasEvento: false, hasResultado: true,  color: { bg: "#F5F3FF", border: "#C4B5FD", text: "#7C3AED", dot: "#8B5CF6" } },
-  { id: "evento_agenda",         label: "Evento Agenda",     short: "EVT", hasImportancia: false, hasSeveridad: false, hasIndicador: false, hasEvento: true,  hasResultado: false, color: { bg: "#FFFBEB", border: "#FCD34D", text: "#B45309", dot: "#F59E0B" } },
-  { id: "documento",             label: "Documento",         short: "DOC", hasImportancia: false, hasSeveridad: false, hasIndicador: false, hasEvento: false, hasResultado: false, color: { bg: "#F9FAFB", border: "#D1D5DB", text: "#374151", dot: "#9CA3AF" } },
-  { id: "feedback_saanee",       label: "Feedback SAANEE",   short: "SAA", hasImportancia: true,  hasSeveridad: true,  hasIndicador: false, hasEvento: false, hasResultado: false, color: { bg: "#FDF4FF", border: "#E879F9", text: "#A21CAF", dot: "#D946EF" } },
+  { id: "observacion_pe",        label: "Obs. Pedagógica",   short: "OBS", hasImportancia: true,  hasSeveridad: true,  hasIndicador: false, hasEvento: false, hasResultado: false, hasResultadoLogrado: false, color: { bg: "#EFF6FF", border: "#93C5FD", text: "#2563EB", dot: "#3B82F6" } },
+  { id: "comunicacion_familiar", label: "Comunicación Fam.", short: "COM", hasImportancia: true,  hasSeveridad: true,  hasIndicador: false, hasEvento: false, hasResultado: false, hasResultadoLogrado: false, color: { bg: "#F0F9FF", border: "#7DD3FC", text: "#0284C7", dot: "#0EA5E9" } },
+  { id: "incidencia",            label: "Incidencia",        short: "INC", hasImportancia: false, hasSeveridad: true,  hasIndicador: false, hasEvento: false, hasResultado: true,  hasResultadoLogrado: false, color: { bg: "#FEF2F2", border: "#FCA5A5", text: "#DC2626", dot: "#EF4444" } },
+  { id: "apoyo_ajuste",          label: "Apoyo o Ajuste",    short: "APO", hasImportancia: false, hasSeveridad: false, hasIndicador: false, hasEvento: false, hasResultado: false, hasResultadoLogrado: false, color: { bg: "#ECFDF5", border: "#6EE7B7", text: "#059669", dot: "#10B981" } },
+  { id: "evaluacion_indicador",  label: "Eval. Indicador",   short: "EVA", hasImportancia: false, hasSeveridad: false, hasIndicador: true,  hasEvento: false, hasResultado: true,  hasResultadoLogrado: true,  color: { bg: "#F5F3FF", border: "#C4B5FD", text: "#7C3AED", dot: "#8B5CF6" } },
+  { id: "evento_agenda",         label: "Evento Agenda",     short: "EVT", hasImportancia: false, hasSeveridad: false, hasIndicador: false, hasEvento: true,  hasResultado: false, hasResultadoLogrado: false, color: { bg: "#FFFBEB", border: "#FCD34D", text: "#B45309", dot: "#F59E0B" } },
+  { id: "documento",             label: "Documento",         short: "DOC", hasImportancia: false, hasSeveridad: false, hasIndicador: false, hasEvento: false, hasResultado: false, hasResultadoLogrado: false, color: { bg: "#F9FAFB", border: "#D1D5DB", text: "#374151", dot: "#9CA3AF" } },
+  { id: "feedback_saanee",       label: "Feedback SAANEE",   short: "SAA", hasImportancia: true,  hasSeveridad: true,  hasIndicador: false, hasEvento: false, hasResultado: false, hasResultadoLogrado: false, color: { bg: "#FDF4FF", border: "#E879F9", text: "#A21CAF", dot: "#D946EF" } },
 ]
 
 export function getEntryTypeColor(type: string) {

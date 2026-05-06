@@ -27,7 +27,7 @@ export const BACK_TO_FRONT: Record<TipoEntrada, string> = {
 
 // Matriz rol → tipos creables (espejo de la del backend en BitacoraService).
 export const TIPOS_POR_ROL: Record<UserRole, string[]> = {
-  docente: ["observacion_pe", "incidencia", "apoyo_ajuste"],
+  docente: ["observacion_pe", "incidencia", "apoyo_ajuste", "evaluacion_indicador"],
   padre: ["comunicacion_familiar"],
   saanee: ["feedback_saanee"],
   admin: [],
@@ -89,6 +89,8 @@ export function toUiEntry(
     importancia: e.nivelImportancia ?? undefined,
     severidad: e.severidad ?? undefined,
     resultado: e.resultado ?? undefined,
+    indicador: e.indicador ?? undefined,
+    resultadoLogrado: e.resultadoLogrado,
   }
 }
 

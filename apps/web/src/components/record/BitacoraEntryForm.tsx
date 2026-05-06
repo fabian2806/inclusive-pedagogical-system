@@ -1,21 +1,23 @@
-import { MessageSquare, Paperclip } from "lucide-react"
+import { CheckCircle2, MessageSquare, Paperclip, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import type { EntryTypeConfig } from "@/lib/bitacora-ui"
-
-const MOCK_INDICADORES = [
-  { id: "COM-01", label: "COM-01: Comprensión de instrucciones en LSP" },
-  { id: "COM-02", label: "COM-02: Vocabulario en LSP" },
-  { id: "COM-03", label: "COM-03: Expresión de necesidades básicas" },
-  { id: "MAT-01", label: "MAT-01: Operaciones básicas" },
-]
+import type { IndicadorResponse } from "@/types/api"
 
 const MOCK_EVENTOS = [
   { id: "ev-1", label: "Evaluación trimestral · 28 Mar 2025" },
   { id: "ev-2", label: "Sesión SAANEE · 1 Abr 2025" },
 ]
+
+const AREA_LABEL: Record<string, string> = {
+  COMUNICACION: "Comunicación",
+  MATEMATICA: "Matemática",
+  ED_FISICA: "Ed. Física",
+  PERSONAL_SOCIAL: "Personal Social",
+  OTRO: "Otro",
+}
 
 export interface EntryFormState {
   tipo: string
@@ -26,6 +28,7 @@ export interface EntryFormState {
   indicadorId: string
   eventoId: string
   resultado: string
+  resultadoLogrado: "" | "true" | "false"
 }
 
 interface Props {
@@ -33,6 +36,7 @@ interface Props {
   entryForm: EntryFormState
   setEntryForm: React.Dispatch<React.SetStateAction<EntryFormState>>
   selectedType: EntryTypeConfig | undefined
+  indicadoresActivos: IndicadorResponse[]
   submitting: boolean
   onPublish: () => void
 }
@@ -51,14 +55,23 @@ function placeholderForTipo(tipo: string): string {
   }
 }
 
+function publishDisabled(form: EntryFormState, tipo: EntryTypeConfig | undefined): boolean {
+  if (!form.tipo || !form.contenido.trim()) return true
+  if (tipo?.hasIndicador && !form.indicadorId) return true
+  return false
+}
+
 export function BitacoraEntryForm({
   tiposVisibles,
   entryForm,
   setEntryForm,
   selectedType,
+  indicadoresActivos,
   submitting,
   onPublish,
 }: Props) {
+  const sinIndicadoresActivos = !!selectedType?.hasIndicador && indicadoresActivos.length === 0
+
   return (
     <div
       className="mb-6 rounded-lg overflow-hidden transition-all duration-300 flex"
@@ -100,6 +113,7 @@ export function BitacoraEntryForm({
                       indicadorId: !deseleccionar && t.hasIndicador ? f.indicadorId : "",
                       eventoId: !deseleccionar && t.hasEvento ? f.eventoId : "",
                       resultado: !deseleccionar && t.hasResultado ? f.resultado : "",
+                      resultadoLogrado: !deseleccionar && t.hasResultadoLogrado ? f.resultadoLogrado : "",
                     }
                   })}
                   className="text-xs px-3 py-1 rounded-full border transition-all duration-150 flex items-center gap-1.5"
@@ -152,7 +166,7 @@ export function BitacoraEntryForm({
         </div>
 
         {/* Conditional fields */}
-        {selectedType && (selectedType.hasImportancia || selectedType.hasSeveridad || selectedType.hasIndicador || selectedType.hasEvento || selectedType.hasResultado) && (
+        {selectedType && (selectedType.hasImportancia || selectedType.hasSeveridad || selectedType.hasIndicador || selectedType.hasEvento || selectedType.hasResultado || selectedType.hasResultadoLogrado) && (
           <div className="px-4 pt-2 pb-3 flex flex-wrap gap-2">
             {selectedType.hasImportancia && (
               <Select value={entryForm.importancia} onValueChange={(v) => setEntryForm((f) => ({ ...f, importancia: v }))}>
@@ -180,12 +194,15 @@ export function BitacoraEntryForm({
             )}
             {selectedType.hasIndicador && (
               <Select value={entryForm.indicadorId} onValueChange={(v) => setEntryForm((f) => ({ ...f, indicadorId: v }))}>
-                <SelectTrigger className="h-8 text-xs w-64 bg-white border-[#E5E7EB]">
-                  <SelectValue placeholder="Seleccionar indicador" />
+                <SelectTrigger className="h-8 text-xs w-72 bg-white border-[#E5E7EB]">
+                  <SelectValue placeholder={sinIndicadoresActivos ? "Sin indicadores activos" : "Seleccionar indicador *"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {MOCK_INDICADORES.map((i) => (
-                    <SelectItem key={i.id} value={i.id}>{i.label}</SelectItem>
+                  {indicadoresActivos.map((i) => (
+                    <SelectItem key={i.id} value={String(i.id)}>
+                      {i.nombre}
+                      <span className="text-[#9CA3AF] ml-1">· {AREA_LABEL[i.areaCurricular] ?? i.areaCurricular}</span>
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -202,14 +219,55 @@ export function BitacoraEntryForm({
                 </SelectContent>
               </Select>
             )}
+            {selectedType.hasResultadoLogrado && (
+              <div className="flex items-center gap-1.5 h-8 px-2 rounded-md border border-[#E5E7EB] bg-white">
+                <span className="text-[10px] text-[#6B7280] uppercase tracking-wider mr-1">Resultado:</span>
+                <button
+                  type="button"
+                  onClick={() => setEntryForm((f) => ({
+                    ...f,
+                    resultadoLogrado: f.resultadoLogrado === "true" ? "" : "true",
+                  }))}
+                  className={`text-xs px-2 py-0.5 rounded flex items-center gap-1 transition-colors ${
+                    entryForm.resultadoLogrado === "true"
+                      ? "bg-[#D1FAE5] text-[#059669] border border-[#10B981]"
+                      : "text-[#6B7280] border border-transparent hover:bg-[#F3F4F6]"
+                  }`}
+                >
+                  <CheckCircle2 size={12} /> Logrado
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEntryForm((f) => ({
+                    ...f,
+                    resultadoLogrado: f.resultadoLogrado === "false" ? "" : "false",
+                  }))}
+                  className={`text-xs px-2 py-0.5 rounded flex items-center gap-1 transition-colors ${
+                    entryForm.resultadoLogrado === "false"
+                      ? "bg-[#FEE2E2] text-[#DC2626] border border-[#EF4444]"
+                      : "text-[#6B7280] border border-transparent hover:bg-[#F3F4F6]"
+                  }`}
+                >
+                  <XCircle size={12} /> No logrado
+                </button>
+              </div>
+            )}
             {selectedType.hasResultado && (
               <Input
-                placeholder="Resultado (ej: Logrado 85%)"
+                placeholder={selectedType.hasResultadoLogrado ? "Comentario del resultado (opcional)" : "Resultado (ej: Logrado 85%)"}
                 value={entryForm.resultado}
                 onChange={(e) => setEntryForm((f) => ({ ...f, resultado: e.target.value }))}
-                className="h-8 text-xs w-52 bg-white border-[#E5E7EB]"
+                className="h-8 text-xs w-64 bg-white border-[#E5E7EB]"
               />
             )}
+          </div>
+        )}
+
+        {sinIndicadoresActivos && (
+          <div className="px-4 pb-2 -mt-1">
+            <p className="text-[11px] text-[#B45309] italic">
+              No hay indicadores activos en el catálogo. Crea uno desde "Indicadores" antes de evaluar.
+            </p>
           </div>
         )}
 
@@ -225,7 +283,7 @@ export function BitacoraEntryForm({
             style={{
               backgroundColor: selectedType ? selectedType.color.dot : "#1E3A5F",
             }}
-            disabled={!entryForm.tipo || !entryForm.contenido.trim() || submitting}
+            disabled={publishDisabled(entryForm, selectedType) || submitting}
             onClick={onPublish}
           >
             <MessageSquare size={13} />
