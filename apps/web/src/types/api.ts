@@ -205,6 +205,8 @@ export interface EntradaExpedienteRequest {
   dirigidoAUsuarioId?: number | null
   severidad?: string | null
   resultado?: string | null
+  indicadorId?: number | null
+  resultadoLogrado?: boolean | null
 }
 
 export interface EntradaExpedienteResponse {
@@ -220,12 +222,61 @@ export interface EntradaExpedienteResponse {
   dirigidoA: UsuarioBitacoraResponse | null
   severidad: string | null
   resultado: string | null
+  indicador: IndicadorBitacoraResponse | null
+  resultadoLogrado: boolean | null
 }
 
 export interface BitacoraListarFiltros {
   tipo?: TipoEntrada
   desde?: string
   hasta?: string
+}
+
+// --- Indicadores (Fase 2c) ---
+
+export type AreaCurricular =
+  | 'COMUNICACION'
+  | 'MATEMATICA'
+  | 'ED_FISICA'
+  | 'PERSONAL_SOCIAL'
+  | 'OTRO'
+
+export interface IndicadorResponse {
+  id: number
+  nombre: string
+  descripcion: string | null
+  categoria: string | null
+  areaCurricular: AreaCurricular
+  usuarioCreador: UsuarioSimpleResponse
+  activo: boolean
+}
+
+export interface IndicadorBitacoraResponse {
+  id: number
+  nombre: string
+  descripcion: string | null
+  areaCurricular: AreaCurricular
+  categoria: string | null
+}
+
+export interface IndicadorCreateRequest {
+  nombre: string
+  descripcion?: string | null
+  categoria?: string | null
+  areaCurricular: AreaCurricular
+}
+
+export interface IndicadorUpdateRequest {
+  nombre: string
+  descripcion?: string | null
+  categoria?: string | null
+  areaCurricular: AreaCurricular
+}
+
+export interface IndicadoresListarFiltros {
+  areaCurricular?: AreaCurricular
+  q?: string
+  activo?: boolean
 }
 
 // --- Configuración / Periodo Lectivo ---
