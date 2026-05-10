@@ -311,6 +311,20 @@ export interface DocumentoExpedienteCreateRequest {
   fechaEmision: string  // yyyy-mm-dd
 }
 
+// Adjuntos casuales a entradas de bitácora (no son documentos formales).
+export interface EntradaArchivoResponse {
+  id: number
+  entradaId: number
+  archivo: ArchivoAdjuntoResponse
+  descripcion: string | null
+  usuarioSubido: UsuarioSimpleResponse
+  fechaSubida: string
+}
+
+export interface EntradaArchivoCreateRequest {
+  descripcion?: string | null
+}
+
 // --- Configuración / Periodo Lectivo ---
 
 export interface ConfiguracionPeriodoResponse {

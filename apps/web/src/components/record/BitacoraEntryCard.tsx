@@ -1,8 +1,12 @@
-import { CheckCircle2, Clock, MessageSquare, Paperclip, Target, X, XCircle } from "lucide-react"
+import { useState } from "react"
+import { AlertCircle, CheckCircle2, Clock, MessageSquare, Paperclip, Target, X, XCircle } from "lucide-react"
+import { AxiosError } from "axios"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { getEntryTypeColor, getRoleColor } from "@/lib/bitacora-ui"
+import { formatTamano } from "@/lib/archivos"
+import { entradaArchivosService } from "@/lib/api"
 import type { Attachment, BitacoraEntry, Reply } from "@/types/bitacora"
 
 const AREA_LABEL: Record<string, string> = {
@@ -15,6 +19,7 @@ const AREA_LABEL: Record<string, string> = {
 
 interface Props {
   entry: BitacoraEntry
+  alumnoId: number
   isLast: boolean
   isReplying: boolean
   replyText: string
@@ -35,14 +40,43 @@ function severidadClasses(severidad: string): string {
   return "bg-[#F3F4F6] text-[#6B7280]"
 }
 
-function AttachmentChip({ file, withSize = true }: { file: Attachment; withSize?: boolean }) {
-  return (
-    <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-[#F3F4F6] text-xs text-[#374151]">
+function AttachmentChip({
+  file,
+  withSize = true,
+  onDownload,
+}: {
+  file: Attachment
+  withSize?: boolean
+  onDownload?: () => void
+}) {
+  const interactive = typeof onDownload === "function"
+  const baseClass =
+    "flex items-center gap-2 px-3 py-1.5 rounded-md bg-[#F3F4F6] text-xs text-[#374151]"
+
+  const content = (
+    <>
       <Paperclip size={12} className="text-[#6B7280]" />
-      <span>{file.name}</span>
-      {withSize && <span className="text-[#9CA3AF]">({file.size})</span>}
-    </div>
+      <span className="truncate">{file.name}</span>
+      {withSize && (
+        <span className="text-[#9CA3AF]">({formatTamano(file.size)})</span>
+      )}
+    </>
   )
+
+  if (interactive) {
+    return (
+      <button
+        type="button"
+        onClick={onDownload}
+        title={`Descargar ${file.name}`}
+        className={`${baseClass} hover:bg-[#E5E7EB] cursor-pointer`}
+      >
+        {content}
+      </button>
+    )
+  }
+
+  return <div className={baseClass}>{content}</div>
 }
 
 function ReplyItem({ reply }: { reply: Reply }) {
@@ -78,6 +112,7 @@ function ReplyItem({ reply }: { reply: Reply }) {
 
 export function BitacoraEntryCard({
   entry,
+  alumnoId,
   isLast,
   isReplying,
   replyText,
@@ -89,6 +124,20 @@ export function BitacoraEntryCard({
 }: Props) {
   const typeStyle = getEntryTypeColor(entry.type)
   const roleColor = getRoleColor(entry.role)
+  const [downloadError, setDownloadError] = useState<string | null>(null)
+
+  const handleDownload = async (file: Attachment) => {
+    setDownloadError(null)
+    try {
+      await entradaArchivosService.descargar(alumnoId, file.id)
+    } catch (err) {
+      const mensaje =
+        err instanceof AxiosError
+          ? (err.response?.data?.mensaje ?? err.message)
+          : `No se pudo descargar "${file.name}"`
+      setDownloadError(mensaje)
+    }
+  }
 
   return (
     <div className="relative">
@@ -194,9 +243,20 @@ export function BitacoraEntryCard({
 
             {entry.attachments.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-3">
-                {entry.attachments.map((file, idx) => (
-                  <AttachmentChip key={idx} file={file} />
+                {entry.attachments.map((file) => (
+                  <AttachmentChip
+                    key={file.id}
+                    file={file}
+                    onDownload={() => handleDownload(file)}
+                  />
                 ))}
+              </div>
+            )}
+
+            {downloadError && (
+              <div className="mb-3 flex items-start gap-2 rounded-md border border-[#FECACA] bg-[#FEF2F2] p-2 text-xs text-[#B91C1C]">
+                <AlertCircle size={12} className="mt-0.5 shrink-0" />
+                <span>{downloadError}</span>
               </div>
             )}
 

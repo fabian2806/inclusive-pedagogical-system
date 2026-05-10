@@ -1,5 +1,10 @@
-import type { EntradaExpedienteResponse, TipoEntrada, TipoRol } from "@/types/api"
-import type { BitacoraEntry, Reply } from "@/types/bitacora"
+import type {
+  EntradaArchivoResponse,
+  EntradaExpedienteResponse,
+  TipoEntrada,
+  TipoRol,
+} from "@/types/api"
+import type { Attachment, BitacoraEntry, Reply } from "@/types/bitacora"
 import type { UserRole } from "@/types/auth"
 
 // --- Traducción entre IDs visuales del frontend y el enum TipoEntrada del backend ---
@@ -67,9 +72,20 @@ export function toReply(e: EntradaExpedienteResponse): Reply {
   }
 }
 
+function toAttachment(a: EntradaArchivoResponse): Attachment {
+  return {
+    id: a.id,
+    name: a.archivo.nombreOriginal,
+    size: a.archivo.tamano,
+    mimeType: a.archivo.mimeType,
+    descripcion: a.descripcion,
+  }
+}
+
 export function toUiEntry(
   e: EntradaExpedienteResponse,
   replies: EntradaExpedienteResponse[] = [],
+  archivos: EntradaArchivoResponse[] = [],
 ): BitacoraEntry {
   const { date, time } = formatearFecha(e.fecha)
   return {
@@ -81,7 +97,7 @@ export function toUiEntry(
     type: BACK_TO_FRONT[e.tipo],
     title: e.titulo ?? tituloFallback(e.descripcion),
     content: e.descripcion,
-    attachments: [],
+    attachments: archivos.map(toAttachment),
     replies: replies
       .slice()
       .sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime())
@@ -94,8 +110,15 @@ export function toUiEntry(
   }
 }
 
-// Convierte la lista plana del backend (raíces + respuestas) en hilos para la UI.
-export function agruparHilos(items: EntradaExpedienteResponse[]): BitacoraEntry[] {
+/**
+ * Convierte la lista plana del backend (raíces + respuestas) en hilos para
+ * la UI. Si se pasa archivosPorEntrada, los adjuntos se inyectan en las
+ * entradas raíz correspondientes (las respuestas no llevan adjuntos).
+ */
+export function agruparHilos(
+  items: EntradaExpedienteResponse[],
+  archivosPorEntrada: Map<number, EntradaArchivoResponse[]> = new Map(),
+): BitacoraEntry[] {
   const respuestasPorRaiz = new Map<number, EntradaExpedienteResponse[]>()
   const raices: EntradaExpedienteResponse[] = []
   for (const item of items) {
@@ -107,5 +130,11 @@ export function agruparHilos(items: EntradaExpedienteResponse[]): BitacoraEntry[
       respuestasPorRaiz.set(item.entradaRaizId, lista)
     }
   }
-  return raices.map((r) => toUiEntry(r, respuestasPorRaiz.get(r.id) ?? []))
+  return raices.map((r) =>
+    toUiEntry(
+      r,
+      respuestasPorRaiz.get(r.id) ?? [],
+      archivosPorEntrada.get(r.id) ?? [],
+    ),
+  )
 }

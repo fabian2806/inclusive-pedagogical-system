@@ -6,7 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useParams } from "react-router-dom"
-import { alumnosService, bitacoraService, indicadoresService, perfilDiscapacidadService } from "@/lib/api"
+import {
+  alumnosService,
+  bitacoraService,
+  entradaArchivosService,
+  indicadoresService,
+  perfilDiscapacidadService,
+} from "@/lib/api"
 import { useAuth } from "@/hooks/useAuth"
 import { useApiQuery } from "@/hooks/useApiQuery"
 import {
@@ -15,7 +21,7 @@ import {
   agruparHilos,
 } from "@/lib/bitacora"
 import { ENTRY_TYPES } from "@/lib/bitacora-ui"
-import type { IndicadorResponse } from "@/types/api"
+import type { EntradaArchivoResponse, IndicadorResponse } from "@/types/api"
 import type { BitacoraEntry } from "@/types/bitacora"
 import { ExpedienteHeader } from "@/components/record/ExpedienteHeader"
 import { PerfilCard } from "@/components/record/PerfilCard"
@@ -71,6 +77,7 @@ export default function StudentRecord() {
     eventoId: "",
     resultado: "",
     resultadoLogrado: "",
+    archivos: [],
   })
 
   const selectedType = ENTRY_TYPES.find(t => t.id === entryForm.tipo)
@@ -97,7 +104,21 @@ export default function StudentRecord() {
     setError(null)
     try {
       const data = await bitacoraService.listar(alumnoId)
-      setEntries(agruparHilos(data))
+      // Cargamos los adjuntos de cada raíz en paralelo. Usamos allSettled
+      // para que si una request individual falla (p.ej. permisos), no
+      // tumbemos el render completo de la bitácora.
+      const raices = data.filter(e => e.entradaRaizId == null)
+      const resultados = await Promise.allSettled(
+        raices.map(r => entradaArchivosService.listar(alumnoId, r.id)),
+      )
+      const archivosPorEntrada = new Map<number, EntradaArchivoResponse[]>()
+      resultados.forEach((res, idx) => {
+        archivosPorEntrada.set(
+          raices[idx].id,
+          res.status === "fulfilled" ? res.value : [],
+        )
+      })
+      setEntries(agruparHilos(data, archivosPorEntrada))
     } catch (err) {
       if (err instanceof AxiosError) {
         setError(err.response?.data?.mensaje ?? err.message)
@@ -132,7 +153,7 @@ export default function StudentRecord() {
     setSubmitting(true)
     setError(null)
     try {
-      await bitacoraService.crear(alumnoId, {
+      const nueva = await bitacoraService.crear(alumnoId, {
         tipo: tipoBackend,
         titulo: entryForm.titulo.trim() || null,
         descripcion: entryForm.contenido,
@@ -142,6 +163,24 @@ export default function StudentRecord() {
         indicadorId: esEvaluacion ? Number(entryForm.indicadorId) : null,
         resultadoLogrado,
       })
+
+      // Sube los adjuntos secuencialmente. Si alguno falla, la entrada
+      // ya existe y los anteriores también se subieron; se reporta cuáles
+      // archivos fallaron sin abortar el flujo.
+      const fallosArchivos: string[] = []
+      for (const archivo of entryForm.archivos) {
+        try {
+          await entradaArchivosService.adjuntar(alumnoId, nueva.id, archivo)
+        } catch {
+          fallosArchivos.push(archivo.name)
+        }
+      }
+      if (fallosArchivos.length > 0) {
+        setError(
+          `Entrada publicada, pero fallaron estos archivos: ${fallosArchivos.join(", ")}`,
+        )
+      }
+
       setEntryForm({
         tipo: "",
         titulo: "",
@@ -152,6 +191,7 @@ export default function StudentRecord() {
         eventoId: "",
         resultado: "",
         resultadoLogrado: "",
+        archivos: [],
       })
       await cargar()
     } catch (err) {
@@ -259,6 +299,7 @@ export default function StudentRecord() {
           {/* Bitácora Tab Content */}
           {activeMainTab === "bitacora" && (
             <BitacoraSection
+              alumnoId={alumnoId}
               alumnoNombre={`${alumno.nombre} ${alumno.apellido}`}
               entries={entries}
               filteredEntries={filteredEntries}

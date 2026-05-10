@@ -1,10 +1,12 @@
-import { CheckCircle2, MessageSquare, Paperclip, XCircle } from "lucide-react"
+import { useRef, useState, type ChangeEvent } from "react"
+import { CheckCircle2, MessageSquare, Paperclip, X, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import type { EntryTypeConfig } from "@/lib/bitacora-ui"
 import type { IndicadorResponse } from "@/types/api"
+import { ACCEPT_EXTENSIONS, formatTamano, validarArchivo } from "@/lib/archivos"
 
 const MOCK_EVENTOS = [
   { id: "ev-1", label: "Evaluación trimestral · 28 Mar 2025" },
@@ -29,6 +31,7 @@ export interface EntryFormState {
   eventoId: string
   resultado: string
   resultadoLogrado: "" | "true" | "false"
+  archivos: File[]
 }
 
 interface Props {
@@ -71,6 +74,39 @@ export function BitacoraEntryForm({
   onPublish,
 }: Props) {
   const sinIndicadoresActivos = !!selectedType?.hasIndicador && indicadoresActivos.length === 0
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const [fileError, setFileError] = useState<string | null>(null)
+
+  const handleFilesSelected = (event: ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files
+    if (!files || files.length === 0) return
+
+    const nuevos: File[] = []
+    const errores: string[] = []
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      const error = validarArchivo(file)
+      if (error) errores.push(error)
+      else nuevos.push(file)
+    }
+
+    if (nuevos.length > 0) {
+      setEntryForm(form => ({ ...form, archivos: [...form.archivos, ...nuevos] }))
+    }
+    setFileError(errores.length > 0 ? errores.join(" · ") : null)
+
+    // Reset del input para permitir re-seleccionar el mismo archivo.
+    event.target.value = ""
+  }
+
+  const removeArchivo = (index: number) => {
+    setEntryForm(form => ({
+      ...form,
+      archivos: form.archivos.filter((_, i) => i !== index),
+    }))
+    setFileError(null)
+  }
 
   return (
     <div
@@ -271,9 +307,55 @@ export function BitacoraEntryForm({
           </div>
         )}
 
+        {/* Archivos adjuntos seleccionados (staging antes de publicar) */}
+        {(entryForm.archivos.length > 0 || fileError) && (
+          <div className="px-4 pb-2 space-y-1.5">
+            {entryForm.archivos.map((file, idx) => (
+              <div
+                key={idx}
+                className="flex items-center justify-between rounded-md bg-[#F3F4F6] px-3 py-1.5 text-xs text-[#374151]"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <Paperclip size={12} className="text-[#6B7280] shrink-0" />
+                  <span className="truncate">{file.name}</span>
+                  <span className="text-[#9CA3AF] shrink-0">
+                    ({formatTamano(file.size)})
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeArchivo(idx)}
+                  className="text-[#9CA3AF] hover:text-[#DC2626] shrink-0"
+                  aria-label={`Quitar ${file.name}`}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ))}
+            {fileError && (
+              <p className="text-[11px] text-[#B91C1C] italic">{fileError}</p>
+            )}
+          </div>
+        )}
+
+        {/* Input oculto para el file picker. */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept={ACCEPT_EXTENSIONS}
+          className="hidden"
+          onChange={handleFilesSelected}
+        />
+
         {/* Footer */}
         <div className="px-4 pb-4 flex items-center justify-between">
-          <Button variant="ghost" size="sm" className="text-[#6B7280] gap-1.5 text-xs">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+            className="text-[#6B7280] gap-1.5 text-xs"
+          >
             <Paperclip size={13} />
             Adjuntar archivo
           </Button>

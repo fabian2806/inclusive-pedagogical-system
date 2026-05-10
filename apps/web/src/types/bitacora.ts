@@ -3,9 +3,14 @@
 
 import type { IndicadorBitacoraResponse } from "./api"
 
+// Adjunto persistido en backend (EntradaArchivo + ArchivoAdjunto).
+// El id es de EntradaArchivo (envoltura) y se usa para descargar.
 export type Attachment = {
+  id: number
   name: string
-  size: string
+  size: number  // bytes
+  mimeType: string
+  descripcion?: string | null
 }
 
 export type Reply = {

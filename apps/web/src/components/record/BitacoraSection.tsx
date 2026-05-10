@@ -16,6 +16,7 @@ const FILTROS = [
 ]
 
 interface Props {
+  alumnoId: number
   alumnoNombre: string
   entries: BitacoraEntry[]
   filteredEntries: BitacoraEntry[]
@@ -42,6 +43,7 @@ interface Props {
 }
 
 export function BitacoraSection({
+  alumnoId,
   alumnoNombre,
   entries,
   filteredEntries,
@@ -120,6 +122,7 @@ export function BitacoraSection({
             <BitacoraEntryCard
               key={entry.id}
               entry={entry}
+              alumnoId={alumnoId}
               isLast={index === filteredEntries.length - 1}
               isReplying={replyingTo === entry.id}
               replyText={replyText}
