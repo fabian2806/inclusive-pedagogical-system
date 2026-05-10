@@ -279,6 +279,38 @@ export interface IndicadoresListarFiltros {
   activo?: boolean
 }
 
+// --- Documentos del expediente (Fase 2d) ---
+
+export type EstadoDocumento = 'VIGENTE' | 'ARCHIVADO'
+
+export interface ArchivoAdjuntoResponse {
+  id: number
+  nombreOriginal: string
+  mimeType: string
+  tamano: number
+}
+
+export interface DocumentoExpedienteResponse {
+  id: number
+  tipoDocumento: TipoDocumentoResponse
+  titulo: string
+  periodo: string | null
+  version: number | null
+  estado: EstadoDocumento
+  fechaEmision: string  // LocalDate ISO yyyy-mm-dd
+  fechaSubida: string   // LocalDateTime ISO yyyy-mm-ddThh:mm:ss
+  usuarioSubido: UsuarioSimpleResponse
+  archivo: ArchivoAdjuntoResponse
+  entradaExpedienteId: number
+}
+
+export interface DocumentoExpedienteCreateRequest {
+  tipoDocumentoId: number
+  titulo: string
+  periodo?: string | null
+  fechaEmision: string  // yyyy-mm-dd
+}
+
 // --- Configuración / Periodo Lectivo ---
 
 export interface ConfiguracionPeriodoResponse {

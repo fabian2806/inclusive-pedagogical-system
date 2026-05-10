@@ -16,6 +16,15 @@ export const tiposDocumentoService = {
     return response.data
   },
 
+  /**
+   * Catálogo de solo lectura para roles del expediente (DOCENTE/PADRE/SAANEE).
+   * No requiere TIPO_DOCUMENTO_GESTIONAR; usa DOCUMENTO_EXPEDIENTE_LEER.
+   */
+  async listarCatalogo(): Promise<TipoDocumentoResponse[]> {
+    const response = await apiClient.get<TipoDocumentoResponse[]>('/tipos-documento')
+    return response.data
+  },
+
   async obtener(id: number): Promise<TipoDocumentoResponse> {
     const response = await apiClient.get<TipoDocumentoResponse>(`/admin/tipos-documento/${id}`)
     return response.data

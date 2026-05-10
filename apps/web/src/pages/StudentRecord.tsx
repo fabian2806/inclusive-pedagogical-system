@@ -284,7 +284,12 @@ export default function StudentRecord() {
 
 
           {/* Documentos Tab Content */}
-          {activeMainTab === "documentos" && <DocumentosSection />}
+          {activeMainTab === "documentos" && (
+            <DocumentosSection
+              alumnoId={alumnoId}
+              studentName={`${alumno.nombre} ${alumno.apellido}`}
+            />
+          )}
         </div>
       </div>
     </div>

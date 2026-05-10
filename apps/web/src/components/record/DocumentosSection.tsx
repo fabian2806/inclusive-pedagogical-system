@@ -1,95 +1,75 @@
-import { useState } from "react"
-import { AlertCircle, CheckCircle, Download, Eye, FileCheck, FolderOpen, History, Paperclip, Upload } from "lucide-react"
+import { useCallback, useState } from "react"
+import {
+  AlertCircle,
+  CheckCircle,
+  Download,
+  FileCheck,
+  FolderOpen,
+  History,
+  Loader2,
+  Paperclip,
+  Upload,
+} from "lucide-react"
+import { AxiosError } from "axios"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { UploadDocumentModal } from "@/components/record/SubirDocumentoModal"
+import { documentosExpedienteService, tiposDocumentoService } from "@/lib/api"
+import { useApiQuery } from "@/hooks/useApiQuery"
+import {
+  UploadDocumentModal,
+  type UploadDocumentPayload,
+} from "./SubirDocumentoModal"
+import type {
+  DocumentoExpedienteResponse,
+  TipoDocumentoResponse,
+} from "@/types/api"
 
-// Mock — la integración real con documentos llega en la fase 2d.
-const tiposDocumento = [
-  { id: "PEP", nombre: "Plan Educativo Personalizado", esObligatorio: true, esVersionable: true, esPeriodico: false },
-  { id: "IPP", nombre: "Informe Psicopedagógico", esObligatorio: true, esVersionable: true, esPeriodico: false },
-  { id: "IB", nombre: "Informe Bimestral", esObligatorio: true, esVersionable: false, esPeriodico: true, periodicidad: "Bimestral" },
-  { id: "IS", nombre: "Informe de Salida", esObligatorio: false, esVersionable: false, esPeriodico: false },
-  { id: "OTRO", nombre: "Otro", esObligatorio: false, esVersionable: false, esPeriodico: false },
-]
-
-const documentosExpediente = [
-  {
-    id: "1",
-    tipoDocumentoId: "PEP",
-    titulo: "Plan Educativo Personalizado 2025",
-    version: 2,
-    estado: "vigente",
-    fechaEmision: "15/01/2025",
-    fechaSubida: "16/01/2025",
-    usuarioSubido: "Esp. Roberto Quispe",
-    archivo: { nombreOriginal: "PEP_Sofia_Rodriguez_2025_v2.pdf", mimeType: "application/pdf", tamano: "1.2 MB", url: "#" },
-    versiones: [
-      { version: 1, fecha: "10/01/2024", usuario: "Esp. Roberto Quispe", archivo: "PEP_Sofia_Rodriguez_2024_v1.pdf" },
-      { version: 2, fecha: "16/01/2025", usuario: "Esp. Roberto Quispe", archivo: "PEP_Sofia_Rodriguez_2025_v2.pdf" },
-    ],
-  },
-  {
-    id: "2",
-    tipoDocumentoId: "IPP",
-    titulo: "Informe Psicopedagógico Inicial",
-    version: 1,
-    estado: "vigente",
-    fechaEmision: "20/03/2023",
-    fechaSubida: "22/03/2023",
-    usuarioSubido: "Esp. Roberto Quispe",
-    archivo: { nombreOriginal: "IPP_Sofia_Rodriguez_Inicial.pdf", mimeType: "application/pdf", tamano: "2.8 MB", url: "#" },
-    versiones: [
-      { version: 1, fecha: "22/03/2023", usuario: "Esp. Roberto Quispe", archivo: "IPP_Sofia_Rodriguez_Inicial.pdf" },
-    ],
-  },
-  {
-    id: "3",
-    tipoDocumentoId: "IB",
-    titulo: "Informe Bimestral - I Bimestre 2025",
-    periodo: "I Bimestre 2025",
-    version: null as number | null,
-    estado: "vigente",
-    fechaEmision: "28/02/2025",
-    fechaSubida: "01/03/2025",
-    usuarioSubido: "Prof. María Castro",
-    archivo: { nombreOriginal: "IB_Sofia_Rodriguez_I_Bim_2025.pdf", mimeType: "application/pdf", tamano: "856 KB", url: "#" },
-    versiones: [] as { version: number; fecha: string; usuario: string; archivo: string }[],
-  },
-  {
-    id: "4",
-    tipoDocumentoId: "IB",
-    titulo: "Informe Bimestral - IV Bimestre 2024",
-    periodo: "IV Bimestre 2024",
-    version: null as number | null,
-    estado: "archivado",
-    fechaEmision: "15/12/2024",
-    fechaSubida: "16/12/2024",
-    usuarioSubido: "Prof. María Castro",
-    archivo: { nombreOriginal: "IB_Sofia_Rodriguez_IV_Bim_2024.pdf", mimeType: "application/pdf", tamano: "920 KB", url: "#" },
-    versiones: [] as { version: number; fecha: string; usuario: string; archivo: string }[],
-  },
-  {
-    id: "5",
-    tipoDocumentoId: "OTRO",
-    titulo: "Constancia de Matrícula 2025",
-    version: null as number | null,
-    estado: "vigente",
-    fechaEmision: "05/01/2025",
-    fechaSubida: "05/01/2025",
-    usuarioSubido: "Admin Sistema",
-    archivo: { nombreOriginal: "Constancia_Matricula_2025.pdf", mimeType: "application/pdf", tamano: "125 KB", url: "#" },
-    versiones: [] as { version: number; fecha: string; usuario: string; archivo: string }[],
-  },
-]
-
-function getTipoDocumento(tipoId: string) {
-  return tiposDocumento.find((t) => t.id === tipoId) || tiposDocumento[4]
+interface Props {
+  alumnoId: number
+  studentName: string
 }
 
-function getDocTypeColor(tipoId: string) {
-  switch (tipoId) {
+interface GrupoDocumento {
+  vigente: DocumentoExpedienteResponse
+  historial: DocumentoExpedienteResponse[]
+}
+
+function esTipoOtro(tipo: TipoDocumentoResponse): boolean {
+  return tipo.nombre.trim().toUpperCase() === "OTRO"
+}
+
+/**
+ * Agrupa documentos por (tipoId, periodo). OTRO no se agrupa: cada upload
+ * de OTRO es independiente (decisión Fase 2d para permitir múltiples
+ * vigentes simultáneos sin colisión de versionado).
+ */
+function agruparDocumentos(docs: DocumentoExpedienteResponse[]): GrupoDocumento[] {
+  const grupos = new Map<string, DocumentoExpedienteResponse[]>()
+  for (const doc of docs) {
+    const key = esTipoOtro(doc.tipoDocumento)
+      ? `OTRO-${doc.id}`
+      : `${doc.tipoDocumento.id}::${doc.periodo ?? ""}`
+    const lista = grupos.get(key) ?? []
+    lista.push(doc)
+    grupos.set(key, lista)
+  }
+  const resultado = [...grupos.values()].map(versiones => {
+    const ordenadas = [...versiones].sort(
+      (a, b) => (b.version ?? 0) - (a.version ?? 0),
+    )
+    return {
+      vigente: ordenadas.find(v => v.estado === "VIGENTE") ?? ordenadas[0],
+      historial: ordenadas,
+    }
+  })
+  return resultado.sort((a, b) =>
+    b.vigente.fechaSubida.localeCompare(a.vigente.fechaSubida),
+  )
+}
+
+function getDocTypeColor(tipoNombre: string) {
+  switch (tipoNombre.trim().toUpperCase()) {
     case "PEP":
       return { bg: "bg-[#EEF2FF]", border: "border-[#C7D2FE]", text: "text-[#4F46E5]", icon: "text-[#4F46E5]" }
     case "IPP":
@@ -103,9 +83,118 @@ function getDocTypeColor(tipoId: string) {
   }
 }
 
-export function DocumentosSection() {
-  const [showVersionHistory, setShowVersionHistory] = useState<string | null>(null)
-  const [uploadModalOpen, setUploadModalOpen] = useState(false)
+function formatFecha(iso: string): string {
+  const date = new Date(iso)
+  if (isNaN(date.getTime())) return iso
+  return date.toLocaleDateString("es-PE", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  })
+}
+
+function formatTamano(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+}
+
+export function DocumentosSection({ alumnoId, studentName }: Props) {
+  const fetchDocumentos = useCallback(
+    () => documentosExpedienteService.listar(alumnoId),
+    [alumnoId],
+  )
+  const fetchTipos = useCallback(() => tiposDocumentoService.listarCatalogo(), [])
+
+  const {
+    data: documentos,
+    isLoading: loadingDocs,
+    error: errorDocs,
+    refetch,
+  } = useApiQuery(fetchDocumentos)
+  const {
+    data: tipos,
+    isLoading: loadingTipos,
+    error: errorTipos,
+  } = useApiQuery(fetchTipos)
+
+  const [showVersionHistory, setShowVersionHistory] = useState<number | null>(null)
+  const [showModal, setShowModal] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
+
+  const docs = documentos ?? []
+  const tiposLista = tipos ?? []
+  const grupos = agruparDocumentos(docs)
+
+  const totalVigentes = docs.filter(d => d.estado === "VIGENTE").length
+  const totalDocs = docs.length
+  const totalObligatorios = tiposLista.filter(t => t.esObligatorio).length
+  const totalConVersiones = grupos.filter(g => g.historial.length > 1).length
+
+  const handleSubmit = async (payload: UploadDocumentPayload) => {
+    setUploading(true)
+    setUploadError(null)
+    try {
+      await documentosExpedienteService.subir(
+        alumnoId,
+        {
+          tipoDocumentoId: payload.tipoDocumentoId,
+          titulo: payload.titulo,
+          periodo: payload.periodo,
+          fechaEmision: payload.fechaEmision,
+        },
+        payload.file,
+      )
+      refetch()
+    } catch (err) {
+      if (err instanceof AxiosError) {
+        setUploadError(err.response?.data?.mensaje ?? err.message)
+      } else {
+        setUploadError("Error inesperado al subir documento")
+      }
+      throw err  // mantiene el modal abierto
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleDescargar = async (doc: DocumentoExpedienteResponse) => {
+    setActionError(null)
+    try {
+      await documentosExpedienteService.descargar(alumnoId, doc.id)
+    } catch (err) {
+      if (err instanceof AxiosError) {
+        setActionError(err.response?.data?.mensaje ?? "Error al descargar documento")
+      } else {
+        setActionError("Error inesperado al descargar documento")
+      }
+    }
+  }
+
+  if (loadingDocs || loadingTipos) {
+    return (
+      <Card className="border-[#E5E7EB]">
+        <CardContent className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-[#1E3A5F]" />
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (errorDocs || errorTipos) {
+    return (
+      <Card className="border-[#E5E7EB]">
+        <CardContent className="py-6">
+          <div className="flex items-start gap-2 rounded-lg border border-[#FECACA] bg-[#FEF2F2] p-3 text-sm text-[#B91C1C]">
+            <AlertCircle size={16} className="mt-0.5 shrink-0" />
+            <span>{errorDocs ?? errorTipos}</span>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <>
@@ -116,7 +205,14 @@ export function DocumentosSection() {
               <FolderOpen size={20} className="text-[#3B82F6]" />
               Documentos de Seguimiento
             </CardTitle>
-            <Button className="gap-2 bg-[#1E3A5F] hover:bg-[#2D4A6F] text-white" size="sm" onClick={() => setUploadModalOpen(true)}>
+            <Button
+              className="gap-2 bg-[#1E3A5F] hover:bg-[#2D4A6F] text-white"
+              size="sm"
+              onClick={() => {
+                setUploadError(null)
+                setShowModal(true)
+              }}
+            >
               <Upload size={14} />
               Subir documento
             </Button>
@@ -126,41 +222,52 @@ export function DocumentosSection() {
           </p>
         </CardHeader>
         <CardContent>
+          {actionError && (
+            <div className="mb-4 flex items-start gap-2 rounded-lg border border-[#FECACA] bg-[#FEF2F2] p-3 text-sm text-[#B91C1C]">
+              <AlertCircle size={16} className="mt-0.5 shrink-0" />
+              <span>{actionError}</span>
+            </div>
+          )}
+
           {/* Stats summary */}
           <div className="grid grid-cols-4 gap-3 mb-6">
             <div className="p-3 rounded-lg bg-[#F9FAFB] border border-[#E5E7EB] text-center">
-              <p className="text-2xl font-bold text-[#1E3A5F]">
-                {documentosExpediente.filter((d) => d.estado === "vigente").length}
-              </p>
+              <p className="text-2xl font-bold text-[#1E3A5F]">{totalVigentes}</p>
               <p className="text-xs text-[#6B7280]">Vigentes</p>
             </div>
             <div className="p-3 rounded-lg bg-[#F9FAFB] border border-[#E5E7EB] text-center">
-              <p className="text-2xl font-bold text-[#1E3A5F]">{documentosExpediente.length}</p>
+              <p className="text-2xl font-bold text-[#1E3A5F]">{totalDocs}</p>
               <p className="text-xs text-[#6B7280]">Total</p>
             </div>
             <div className="p-3 rounded-lg bg-[#ECFDF5] border border-[#A7F3D0] text-center">
-              <p className="text-2xl font-bold text-[#059669]">
-                {tiposDocumento.filter((t) => t.esObligatorio).length}
-              </p>
+              <p className="text-2xl font-bold text-[#059669]">{totalObligatorios}</p>
               <p className="text-xs text-[#059669]">Obligatorios</p>
             </div>
             <div className="p-3 rounded-lg bg-[#EEF2FF] border border-[#C7D2FE] text-center">
-              <p className="text-2xl font-bold text-[#4F46E5]">
-                {documentosExpediente.filter((d) => (d.version || 0) > 1).length}
-              </p>
+              <p className="text-2xl font-bold text-[#4F46E5]">{totalConVersiones}</p>
               <p className="text-xs text-[#4F46E5]">Con versiones</p>
             </div>
           </div>
 
           {/* Documents list */}
           <div className="space-y-3">
-            {documentosExpediente.map((doc) => {
-              const tipo = getTipoDocumento(doc.tipoDocumentoId)
-              const colors = getDocTypeColor(doc.tipoDocumentoId)
+            {grupos.length === 0 && (
+              <p className="text-sm text-center text-[#9CA3AF] py-8">
+                No hay documentos en el expediente.
+              </p>
+            )}
+            {grupos.map(grupo => {
+              const doc = grupo.vigente
+              const tipo = doc.tipoDocumento
+              const colors = getDocTypeColor(tipo.nombre)
               const isExpanded = showVersionHistory === doc.id
+              const tieneHistorial = grupo.historial.length > 1
 
               return (
-                <div key={doc.id} className={`border rounded-lg ${colors.border} overflow-hidden`}>
+                <div
+                  key={doc.id}
+                  className={`border rounded-lg ${colors.border} overflow-hidden`}
+                >
                   <div className={`p-4 ${colors.bg}`}>
                     <div className="flex items-start justify-between">
                       <div className="flex gap-3">
@@ -176,7 +283,7 @@ export function DocumentosSection() {
                             >
                               {tipo.nombre}
                             </Badge>
-                            {doc.estado === "vigente" ? (
+                            {doc.estado === "VIGENTE" ? (
                               <Badge className="text-[10px] bg-[#10B981] text-white border-transparent gap-1">
                                 <CheckCircle size={10} />
                                 Vigente
@@ -188,10 +295,12 @@ export function DocumentosSection() {
                             )}
                           </div>
                           <div className="flex items-center gap-3 text-xs text-[#6B7280]">
-                            <span>Emitido: {doc.fechaEmision}</span>
+                            <span>Emitido: {formatFecha(doc.fechaEmision)}</span>
                             <span>·</span>
-                            <span>Subido por: {doc.usuarioSubido}</span>
-                            {doc.version && (
+                            <span>
+                              Subido por: {doc.usuarioSubido.nombre} {doc.usuarioSubido.apellido}
+                            </span>
+                            {doc.version != null && (
                               <>
                                 <span>·</span>
                                 <span className="flex items-center gap-1 text-[#4F46E5]">
@@ -200,7 +309,7 @@ export function DocumentosSection() {
                                 </span>
                               </>
                             )}
-                            {"periodo" in doc && doc.periodo && (
+                            {doc.periodo && (
                               <>
                                 <span>·</span>
                                 <span>{doc.periodo}</span>
@@ -210,11 +319,13 @@ export function DocumentosSection() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {doc.versiones && doc.versiones.length > 1 && (
+                        {tieneHistorial && (
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => setShowVersionHistory(isExpanded ? null : doc.id)}
+                            onClick={() =>
+                              setShowVersionHistory(isExpanded ? null : doc.id)
+                            }
                             className="text-xs text-[#6B7280] hover:text-[#4F46E5] gap-1"
                           >
                             <History size={14} />
@@ -224,14 +335,7 @@ export function DocumentosSection() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-xs text-[#6B7280] hover:text-[#3B82F6] gap-1"
-                        >
-                          <Eye size={14} />
-                          Ver
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
+                          onClick={() => handleDescargar(doc)}
                           className="text-xs text-[#6B7280] hover:text-[#059669] gap-1"
                         >
                           <Download size={14} />
@@ -244,41 +348,51 @@ export function DocumentosSection() {
                     <div className="mt-3 flex items-center gap-2 text-xs text-[#6B7280]">
                       <Paperclip size={12} />
                       <span>{doc.archivo.nombreOriginal}</span>
-                      <span className="text-[#9CA3AF]">({doc.archivo.tamano})</span>
+                      <span className="text-[#9CA3AF]">
+                        ({formatTamano(doc.archivo.tamano)})
+                      </span>
                     </div>
                   </div>
 
                   {/* Version history */}
-                  {isExpanded && doc.versiones && doc.versiones.length > 0 && (
+                  {isExpanded && tieneHistorial && (
                     <div className="border-t border-[#E5E7EB] bg-white p-4">
-                      <p className="text-xs font-medium text-[#374151] mb-3">Historial de versiones</p>
+                      <p className="text-xs font-medium text-[#374151] mb-3">
+                        Historial de versiones
+                      </p>
                       <div className="space-y-2">
-                        {doc.versiones.map((ver, idx) => (
+                        {grupo.historial.map(ver => (
                           <div
-                            key={idx}
+                            key={ver.id}
                             className={`flex items-center justify-between p-2 rounded-lg ${
-                              idx === doc.versiones.length - 1 ? "bg-[#EEF2FF]" : "bg-[#F9FAFB]"
+                              ver.estado === "VIGENTE"
+                                ? "bg-[#EEF2FF]"
+                                : "bg-[#F9FAFB]"
                             }`}
                           >
                             <div className="flex items-center gap-3">
                               <Badge
                                 variant="outline"
                                 className={`text-[10px] ${
-                                  idx === doc.versiones.length - 1
+                                  ver.estado === "VIGENTE"
                                     ? "bg-[#4F46E5] text-white border-transparent"
                                     : "text-[#6B7280]"
                                 }`}
                               >
-                                v{ver.version}
+                                v{ver.version ?? 1}
                               </Badge>
-                              <span className="text-xs text-[#374151]">{ver.archivo}</span>
+                              <span className="text-xs text-[#374151]">
+                                {ver.archivo.nombreOriginal}
+                              </span>
                               <span className="text-xs text-[#6B7280]">
-                                {ver.fecha} · {ver.usuario}
+                                {formatFecha(ver.fechaSubida)} · {ver.usuarioSubido.nombre}{" "}
+                                {ver.usuarioSubido.apellido}
                               </span>
                             </div>
                             <Button
                               variant="ghost"
                               size="sm"
+                              onClick={() => handleDescargar(ver)}
                               className="text-xs text-[#6B7280] hover:text-[#059669] gap-1 h-7"
                             >
                               <Download size={12} />
@@ -294,47 +408,57 @@ export function DocumentosSection() {
           </div>
 
           {/* Required documents status */}
-          <div className="mt-6 p-4 rounded-lg bg-[#F9FAFB] border border-[#E5E7EB]">
-            <p className="text-sm font-medium text-[#1E3A5F] mb-3 flex items-center gap-2">
-              <AlertCircle size={16} className="text-[#F59E0B]" />
-              Documentos obligatorios
-            </p>
-            <div className="grid grid-cols-3 gap-3">
-              {tiposDocumento.filter((t) => t.esObligatorio).map((tipo) => {
-                const hasDoc = documentosExpediente.some(
-                  (d) => d.tipoDocumentoId === tipo.id && d.estado === "vigente",
-                )
-                return (
-                  <div
-                    key={tipo.id}
-                    className={`flex items-center gap-2 p-2 rounded-lg ${
-                      hasDoc ? "bg-[#ECFDF5]" : "bg-[#FEF3C7]"
-                    }`}
-                  >
-                    {hasDoc ? (
-                      <CheckCircle size={14} className="text-[#059669]" />
-                    ) : (
-                      <AlertCircle size={14} className="text-[#D97706]" />
-                    )}
-                    <span className={`text-xs ${hasDoc ? "text-[#059669]" : "text-[#D97706]"}`}>
-                      {tipo.nombre}
-                    </span>
-                  </div>
-                )
-              })}
+          {tiposLista.some(t => t.esObligatorio) && (
+            <div className="mt-6 p-4 rounded-lg bg-[#F9FAFB] border border-[#E5E7EB]">
+              <p className="text-sm font-medium text-[#1E3A5F] mb-3 flex items-center gap-2">
+                <AlertCircle size={16} className="text-[#F59E0B]" />
+                Documentos obligatorios
+              </p>
+              <div className="grid grid-cols-3 gap-3">
+                {tiposLista
+                  .filter(t => t.esObligatorio)
+                  .map(tipo => {
+                    const hasVigente = docs.some(
+                      d => d.tipoDocumento.id === tipo.id && d.estado === "VIGENTE",
+                    )
+                    return (
+                      <div
+                        key={tipo.id}
+                        className={`flex items-center gap-2 p-2 rounded-lg ${
+                          hasVigente ? "bg-[#ECFDF5]" : "bg-[#FEF3C7]"
+                        }`}
+                      >
+                        {hasVigente ? (
+                          <CheckCircle size={14} className="text-[#059669]" />
+                        ) : (
+                          <AlertCircle size={14} className="text-[#D97706]" />
+                        )}
+                        <span
+                          className={`text-xs ${hasVigente ? "text-[#059669]" : "text-[#D97706]"}`}
+                        >
+                          {tipo.nombre}
+                        </span>
+                      </div>
+                    )
+                  })}
+              </div>
             </div>
-          </div>
+          )}
         </CardContent>
       </Card>
+
       <UploadDocumentModal
-        open={uploadModalOpen}
-        onOpenChange={setUploadModalOpen}
-        tiposDocumento={tiposDocumento}
-        studentName="Sofía Rodríguez"
-        onSubmit={async (payload) => {
-          console.log("Documento a subir:", payload)
+        open={showModal}
+        onOpenChange={(open) => {
+          setShowModal(open)
+          if (!open) setUploadError(null)
         }}
+        tiposDocumento={tiposLista}
+        studentName={studentName}
+        onSubmit={handleSubmit}
+        uploading={uploading}
+        uploadError={uploadError}
       />
-  </>
+    </>
   )
 }
