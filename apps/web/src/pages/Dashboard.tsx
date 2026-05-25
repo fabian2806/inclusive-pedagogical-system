@@ -18,7 +18,7 @@ export default function Dashboard() {
         )
       case 'padre':
         return (
-          <ParentDashboard />
+          <ParentDashboard userName={user?.nombre}/>
         )
       case 'saanee':
         return (
