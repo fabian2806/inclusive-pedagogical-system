@@ -14,7 +14,7 @@ export default function Dashboard() {
     switch (user?.rol) {
       case 'docente':
         return (
-          <TeacherDashboard />
+          <TeacherDashboard userName={user?.nombre}/>
         )
       case 'padre':
         return (
