@@ -22,7 +22,7 @@ export default function Dashboard() {
         )
       case 'saanee':
         return (
-          <SaaneeDashboard />
+          <SaaneeDashboard userName={user?.nombre} />
         )
       case 'admin':
         return (
