@@ -26,7 +26,7 @@ export default function Dashboard() {
         )
       case 'admin':
         return (
-          <AdminDashboard />
+          <AdminDashboard userName={user?.nombre}/>
         )
       default:
         return null

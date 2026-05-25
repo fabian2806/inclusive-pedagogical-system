@@ -1,4 +1,3 @@
-import { useAuth } from "@/hooks/useAuth"
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, GraduationCap, ShieldCheck, UserCog, Users } from "lucide-react";
@@ -36,9 +35,8 @@ const userSummary = [
   { role: "admin", label: "Administradores", count: 2, color: "bg-[#1E3A5F]" },
 ]
 
-export default function AdminDashboard() {
-  const { user } = useAuth()
-  const firstName = user?.nombre || "Admin"
+export default function AdminDashboard({ userName }: { userName: string }) {
+  const firstName = userName.split(" ")[0] || "Usuario"
 
   return (
     <div className="p-6 space-y-6">
