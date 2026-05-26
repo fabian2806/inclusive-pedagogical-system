@@ -13,6 +13,7 @@ export type EstadoAlumno = 'ACTIVO' | 'INACTIVO'
 
 export interface LoginResponse {
   accessToken: string
+  authorities: string[]
 }
 
 export interface UsuarioResponse {
@@ -23,6 +24,7 @@ export interface UsuarioResponse {
   telefono: string | null
   estado: EstadoUsuario
   roles: TipoRol[]
+  authorities: string[]
 }
 
 export interface UsuarioSimpleResponse {

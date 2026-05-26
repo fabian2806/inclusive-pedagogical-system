@@ -7,6 +7,7 @@ import { renderWithProviders } from '../helpers/renderWithProviders'
 const mockUser = {
   id: 1, nombre: 'Admin', apellido: 'Test',
   correo: 'admin@test.com', telefono: null, rol: 'admin' as const,
+  authorities: [] as string[],
 }
 
 function TestApp() {

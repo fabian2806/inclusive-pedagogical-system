@@ -15,6 +15,7 @@ function mapUsuarioToUser(usuario: UsuarioResponse): User {
     correo: usuario.correo,
     telefono: usuario.telefono,
     rol: usuario.roles[0].toLowerCase() as UserRole,
+    authorities: usuario.authorities ?? [],
   }
 }
 
@@ -64,6 +65,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('accessToken')
   }, [])
 
+  const hasPermission = useCallback(
+    (permission: string) => user?.authorities.includes(permission) ?? false,
+    [user],
+  )
+
+  const hasAnyPermission = useCallback(
+    (...permissions: string[]) =>
+      permissions.some((p) => user?.authorities.includes(p) ?? false),
+    [user],
+  )
+
   return (
     <AuthContext.Provider
       value={{
@@ -72,6 +84,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         login,
         logout,
+        hasPermission,
+        hasAnyPermission,
       }}
     >
       {children}

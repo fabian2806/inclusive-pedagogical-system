@@ -7,6 +7,7 @@ export interface User {
   correo: string
   telefono: string | null
   rol: UserRole
+  authorities: string[]
 }
 
 export interface AuthContextType {
@@ -15,4 +16,6 @@ export interface AuthContextType {
   isLoading: boolean
   login: (correo: string, password: string) => Promise<void>
   logout: () => void
+  hasPermission: (permission: string) => boolean
+  hasAnyPermission: (...permissions: string[]) => boolean
 }

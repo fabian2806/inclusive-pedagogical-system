@@ -11,6 +11,8 @@ interface RenderOptions {
   route?: string
   login?: AuthContextType['login']
   logout?: AuthContextType['logout']
+  hasPermission?: AuthContextType['hasPermission']
+  hasAnyPermission?: AuthContextType['hasAnyPermission']
 }
 
 export function renderWithProviders(ui: ReactNode, options: RenderOptions = {}) {
@@ -21,6 +23,8 @@ export function renderWithProviders(ui: ReactNode, options: RenderOptions = {}) 
     route = '/',
     login = async () => {},
     logout = () => {},
+    hasPermission = (p) => user?.authorities?.includes(p) ?? false,
+    hasAnyPermission = (...ps) => ps.some((p) => user?.authorities?.includes(p) ?? false),
   } = options
 
   const authValue: AuthContextType = {
@@ -29,6 +33,8 @@ export function renderWithProviders(ui: ReactNode, options: RenderOptions = {}) 
     isLoading,
     login,
     logout,
+    hasPermission,
+    hasAnyPermission,
   }
 
   return render(
