@@ -1,241 +1,152 @@
-"use client"
-
-import { Calendar, Users, Clock, ChevronRight, CheckCircle } from "lucide-react"
+import { useCallback } from "react"
+import { Link } from "react-router-dom"
+import { Calendar, Loader2, Users } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Link } from "react-router-dom"
+import { Badge } from "@/components/ui/badge"
+import { useApiQuery } from "@/hooks/useApiQuery"
+import { dashboardService } from "@/lib/api/dashboardService"
 
-// ── Mock data ────────────────────────────────────────────────────────────────
+export default function SaaneeDashboard({ userName }: { userName: string }) {
+  const firstName = userName.split(" ")[0] || "Usuario"
 
-const kpis = [
-  {
-    label: "Solicitudes activas",
-    value: "5",
-    sub: "2 sin responder",
-    icon: Calendar,
-    color: { bg: "#FDF4FF", icon: "#D946EF", text: "#A21CAF", sub: "#C026D3" },
-  },
-  {
-    label: "Estudiantes activos",
-    value: "9",
-    sub: "3 prioritarios",
-    icon: Users,
-    color: { bg: "#EFF6FF", icon: "#3B82F6", text: "#1D4ED8", sub: "#2563EB" },
-  },
-]
-
-const solicitudes = [
-  {
-    id: "s1",
-    title: "Evaluación auditiva — Sofía Rodríguez",
-    docente: "Prof. María Castro",
-    date: "6 May 2026",
-    time: "9:00 AM",
-    student: "SR",
-    studentPriority: false,
-    status: "pendiente",
-  },
-  {
-    id: "s2",
-    title: "Ajuste de estrategias LSP — Carlos Mendoza",
-    docente: "Prof. Ana Torres",
-    date: "8 May 2026",
-    time: "11:00 AM",
-    student: "CM",
-    studentPriority: true,
-    status: "pendiente",
-  },
-  {
-    id: "s3",
-    title: "Taller comunicación visual — Ana García",
-    docente: "Prof. María Castro",
-    date: "9 May 2026",
-    time: "2:00 PM",
-    student: "AG",
-    studentPriority: false,
-    status: "confirmado",
-  },
-  {
-    id: "s4",
-    title: "Seguimiento plan — Luis Vargas",
-    docente: "Prof. Rosa Lima",
-    date: "12 May 2026",
-    time: "10:30 AM",
-    student: "LV",
-    studentPriority: true,
-    status: "pendiente",
-  },
-]
-
-const proximosEventos = [
-  {
-    id: "e1",
-    title: "Evaluación auditiva — Sofía R.",
-    date: "Mié 6",
-    time: "9:00 AM",
-    type: "solicitud_saanee",
-  },
-  {
-    id: "e2",
-    title: "Ajuste estrategias — Carlos M.",
-    date: "Vie 8",
-    time: "11:00 AM",
-    type: "solicitud_saanee",
-  },
-  {
-    id: "e3",
-    title: "Taller comunicación — Ana G.",
-    date: "Sáb 9",
-    time: "2:00 PM",
-    type: "solicitud_saanee",
-  },
-]
-
-// ── Component ────────────────────────────────────────────────────────────────
-
-export default function SaaaneeDashboard({ userName }: { userName: string }) {
-  const firstName = userName.split(" ")[0]
+  const fetchResumen = useCallback(() => dashboardService.getSaaneeResumen(), [])
+  const { data: resumen, isLoading, error } = useApiQuery(fetchResumen)
 
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-[#1E3A5F]">Bienvenido, {firstName}</h1>
           <p className="text-sm text-[#6B7280]">
-            Aquí están tus solicitudes de apoyo pendientes y tus próximos eventos.
+            Consulta el seguimiento global de los estudiantes del sistema.
           </p>
         </div>
-        <Link to="/dashboard/eventos">
-          <Button className="bg-[#1E3A5F] hover:bg-[#2D4A6F] text-white text-sm gap-2">
-            <Calendar size={15} />
-            Ver todos los eventos
-          </Button>
-        </Link>
+        <Button asChild variant="outline" className="border-[#E5E7EB] text-[#374151] shrink-0">
+          <Link to="/dashboard/estudiantes">Ver todos los estudiantes</Link>
+        </Button>
       </div>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {kpis.map((kpi) => (
-          <Card key={kpi.label} className="border-[#E5E7EB]">
-            <CardContent className="p-5">
-              <div className="flex items-start justify-between">
-                <div className="space-y-1">
-                  <p className="text-xs font-semibold text-[#9CA3AF] uppercase tracking-widest">
-                    {kpi.label}
-                  </p>
-                  <p className="text-3xl font-bold" style={{ color: kpi.color.text }}>
-                    {kpi.value}
-                  </p>
-                  <p className="text-xs font-medium" style={{ color: kpi.color.sub }}>
-                    {kpi.sub}
-                  </p>
-                </div>
-                <div
-                  className="w-11 h-11 rounded-xl flex items-center justify-center"
-                  style={{ backgroundColor: kpi.color.bg }}
-                >
-                  <kpi.icon size={22} style={{ color: kpi.color.icon }} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Main grid */}
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Solicitudes de apoyo recibidas */}
-        <Card className="lg:col-span-2 border-[#E5E7EB]">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-base text-[#1E3A5F]">Solicitudes de apoyo</CardTitle>
-                <p className="text-xs text-[#6B7280] mt-0.5">Apoyo SAANEE solicitado por docentes</p>
-              </div>
-              <Link to="/dashboard/eventos">
-                <Button variant="ghost" size="sm" className="text-[#3B82F6] text-xs gap-1">
-                  Ver todas
-                  <ChevronRight size={13} />
-                </Button>
-              </Link>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {solicitudes.map((s) => (
-              <div
-                key={s.id}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-[#F3F4F6] hover:border-[#E5E7EB] hover:bg-[#FAFAFA] transition-colors cursor-pointer"
-              >
-                {/* Avatar estudiante */}
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-semibold ${
-                  s.studentPriority ? "bg-[#FEF3C7] text-[#D97706]" : "bg-[#EFF6FF] text-[#2563EB]"
-                }`}>
-                  {s.student}
-                </div>
-
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-[#1E3A5F] truncate">{s.title}</p>
-                  <p className="text-xs text-[#9CA3AF]">{s.docente}</p>
-                </div>
-
-                {/* Fecha */}
-                <div className="text-right shrink-0">
-                  <p className="text-xs font-medium text-[#374151]">{s.date}</p>
-                  <p className="text-xs text-[#9CA3AF]">{s.time}</p>
-                </div>
-
-                {/* Estado */}
-                {s.status === "pendiente" ? (
-                  <div className="w-2 h-2 rounded-full bg-[#F59E0B] shrink-0" title="Pendiente" />
-                ) : (
-                  <CheckCircle size={15} className="text-[#059669] shrink-0" />
-                )}
-              </div>
-            ))}
+      {isLoading && (
+        <div className="flex items-center justify-center py-8 text-[#6B7280]">
+          <Loader2 className="h-5 w-5 animate-spin mr-2" />
+          Cargando resumen...
+        </div>
+      )}
+      {error && (
+        <Card className="border-[#FECACA] bg-[#FEF2F2]">
+          <CardContent className="p-4 text-sm text-[#B91C1C]">
+            No se pudo cargar el resumen: {error}
           </CardContent>
         </Card>
+      )}
 
-        {/* Próximos eventos */}
-        <Card className="border-[#E5E7EB]">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base text-[#1E3A5F]">Próximos eventos</CardTitle>
-              <Link to="/dashboard/eventos">
-                <Button variant="ghost" size="sm" className="text-[#3B82F6] text-xs gap-1">
-                  Ver todos
-                  <ChevronRight size={13} />
-                </Button>
-              </Link>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {proximosEventos.length === 0 ? (
-              <div className="py-8 text-center">
-                <Calendar size={28} className="mx-auto text-[#D1D5DB] mb-2" />
-                <p className="text-xs text-[#9CA3AF]">Sin eventos próximos</p>
-              </div>
-            ) : (
-              proximosEventos.map((ev) => (
-                <div
-                  key={ev.id}
-                  className="flex items-start gap-3 p-3 rounded-lg bg-[#FDF4FF] border border-[#F5D0FE] cursor-pointer hover:border-[#E879F9] transition-colors"
-                >
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#D946EF] mt-1.5 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-[#1E3A5F] leading-tight">{ev.title}</p>
-                    <p className="text-[11px] text-[#9CA3AF] mt-0.5 flex items-center gap-1">
-                      <Clock size={10} />
-                      {ev.date} · {ev.time}
+      {!isLoading && !error && resumen && (
+        <>
+          {/* KPIs */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Solicitudes activas — placeholder Fase 4 */}
+            <Card className="border-[#E5E7EB]">
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs font-semibold text-[#9CA3AF] uppercase tracking-widest">
+                        Solicitudes activas
+                      </p>
+                      <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 font-normal">
+                        Próximamente
+                      </Badge>
+                    </div>
+                    <p className="text-3xl font-bold text-[#A21CAF] opacity-50">—</p>
+                    <p className="text-xs font-medium text-[#C026D3]">
+                      Disponible en Fase 4
+                    </p>
+                  </div>
+                  <div
+                    className="w-11 h-11 rounded-xl flex items-center justify-center opacity-50"
+                    style={{ backgroundColor: "#FDF4FF" }}
+                  >
+                    <Calendar size={22} style={{ color: "#D946EF" }} />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Estudiantes activos — real */}
+            <Card className="border-[#E5E7EB]">
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold text-[#9CA3AF] uppercase tracking-widest">
+                      Estudiantes activos
+                    </p>
+                    <p className="text-3xl font-bold text-[#1D4ED8]">{resumen.totalAlumnosActivos}</p>
+                    <p className="text-xs font-medium text-[#2563EB]">En seguimiento global</p>
+                  </div>
+                  <div
+                    className="w-11 h-11 rounded-xl flex items-center justify-center"
+                    style={{ backgroundColor: "#EFF6FF" }}
+                  >
+                    <Users size={22} style={{ color: "#3B82F6" }} />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Grilla: Solicitudes de apoyo + Próximos eventos (ambos Fase 4) */}
+          <div className="grid lg:grid-cols-3 gap-6">
+            <Card className="lg:col-span-2 border-[#E5E7EB]">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base text-[#1E3A5F] flex items-center gap-2">
+                      Solicitudes de apoyo
+                      <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 font-normal">
+                        Próximamente
+                      </Badge>
+                    </CardTitle>
+                    <p className="text-xs text-[#6B7280] mt-0.5">
+                      Apoyo SAANEE solicitado por docentes
                     </p>
                   </div>
                 </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
-      </div>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col items-center justify-center py-10 text-center">
+                  <Calendar size={32} className="text-[#9CA3AF] mb-3" />
+                  <p className="text-sm text-[#6B7280] max-w-md">
+                    La gestión de solicitudes de apoyo se incorpora junto al módulo de
+                    coordinación en una fase posterior.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Próximos eventos — placeholder Fase 4 */}
+            <Card className="border-[#E5E7EB]">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base text-[#1E3A5F]">Próximos eventos</CardTitle>
+                  <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 font-normal">
+                    Próximamente
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col items-center justify-center py-10 text-center">
+                  <Calendar size={32} className="text-[#9CA3AF] mb-3" />
+                  <p className="text-sm text-[#6B7280] max-w-50">
+                    La gestión de eventos llegará en una fase posterior.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      )}
     </div>
   )
 }
