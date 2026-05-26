@@ -19,4 +19,5 @@ public class UsuarioResponse {
     private String telefono;
     private String estado;
     private List<String> roles;
+    private List<String> authorities;
 }

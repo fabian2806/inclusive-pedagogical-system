@@ -4,6 +4,7 @@ import org.springframework.stereotype.Component;
 import pe.edu.pucp.signaedu.signaedu_backend.dto.response.UsuarioBitacoraResponse;
 import pe.edu.pucp.signaedu.signaedu_backend.dto.response.UsuarioResponse;
 import pe.edu.pucp.signaedu.signaedu_backend.dto.response.UsuarioSimpleResponse;
+import pe.edu.pucp.signaedu.signaedu_backend.model.Permiso;
 import pe.edu.pucp.signaedu.signaedu_backend.model.Rol;
 import pe.edu.pucp.signaedu.signaedu_backend.model.Usuario;
 
@@ -26,7 +27,17 @@ public class UsuarioMapper {
                 .telefono(usuario.getTelefono())
                 .estado(usuario.getEstado().name())
                 .roles(roles)
+                .authorities(extraerAuthorities(usuario))
                 .build();
+    }
+
+    public List<String> extraerAuthorities(Usuario usuario) {
+        return usuario.getRoles().stream()
+                .flatMap(rol -> rol.getPermisos().stream())
+                .map(Permiso::getNombre)
+                .distinct()
+                .sorted()
+                .toList();
     }
 
     public UsuarioSimpleResponse toSimpleResponse(Usuario usuario) {
