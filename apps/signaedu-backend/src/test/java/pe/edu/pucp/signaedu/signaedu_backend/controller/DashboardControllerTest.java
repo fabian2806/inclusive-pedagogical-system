@@ -9,20 +9,25 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import pe.edu.pucp.signaedu.signaedu_backend.config.SecurityConfig;
+import pe.edu.pucp.signaedu.signaedu_backend.dto.response.ActividadEntradaResponse;
 import pe.edu.pucp.signaedu.signaedu_backend.dto.response.AdminDashboardResponse;
 import pe.edu.pucp.signaedu.signaedu_backend.dto.response.DocenteDashboardResponse;
 import pe.edu.pucp.signaedu.signaedu_backend.dto.response.HijoResumen;
 import pe.edu.pucp.signaedu.signaedu_backend.dto.response.PadreDashboardResponse;
 import pe.edu.pucp.signaedu.signaedu_backend.dto.response.SaaneeDashboardResponse;
+import pe.edu.pucp.signaedu.signaedu_backend.dto.response.UsuarioBitacoraResponse;
+import pe.edu.pucp.signaedu.signaedu_backend.model.enums.TipoEntrada;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.TipoRol;
 import pe.edu.pucp.signaedu.signaedu_backend.security.CustomUserDetailsService;
 import pe.edu.pucp.signaedu.signaedu_backend.security.JwtAuthenticationFilter;
 import pe.edu.pucp.signaedu.signaedu_backend.security.JwtService;
 import pe.edu.pucp.signaedu.signaedu_backend.service.DashboardService;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -100,6 +105,37 @@ class DashboardControllerTest {
     @WithMockUser(roles = "PADRE")
     void resumenDocente_conRolPadre_devuelve403() throws Exception {
         mockMvc.perform(get("/dashboard/docente/resumen"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(roles = "DOCENTE")
+    void actividadRecienteDocente_conRolDocente_devuelve200ConLista() throws Exception {
+        ActividadEntradaResponse entrada = ActividadEntradaResponse.builder()
+                .id(1L)
+                .tipo(TipoEntrada.COMUNICACION_FAMILIAR)
+                .fecha(LocalDateTime.of(2026, 5, 25, 10, 30))
+                .autor(UsuarioBitacoraResponse.builder()
+                        .id(2L).nombre("Padre").apellido("Lopez").rol("PADRE").build())
+                .alumnoId(7L).alumnoNombre("Carlos").alumnoApellido("Lopez")
+                .titulo("Consulta")
+                .descripcion("Hola profe")
+                .build();
+        when(dashboardService.obtenerActividadRecienteDocente(anyInt()))
+                .thenReturn(List.of(entrada));
+
+        mockMvc.perform(get("/dashboard/docente/actividad-reciente?limit=5"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(1))
+                .andExpect(jsonPath("$[0].tipo").value("COMUNICACION_FAMILIAR"))
+                .andExpect(jsonPath("$[0].alumnoNombre").value("Carlos"))
+                .andExpect(jsonPath("$[0].autor.rol").value("PADRE"));
+    }
+
+    @Test
+    @WithMockUser(roles = "PADRE")
+    void actividadRecienteDocente_conRolPadre_devuelve403() throws Exception {
+        mockMvc.perform(get("/dashboard/docente/actividad-reciente"))
                 .andExpect(status().isForbidden());
     }
 

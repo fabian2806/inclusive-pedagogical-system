@@ -7,20 +7,27 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import pe.edu.pucp.signaedu.signaedu_backend.dto.response.ActividadEntradaResponse;
 import pe.edu.pucp.signaedu.signaedu_backend.dto.response.AdminDashboardResponse;
 import pe.edu.pucp.signaedu.signaedu_backend.dto.response.DocenteDashboardResponse;
 import pe.edu.pucp.signaedu.signaedu_backend.dto.response.PadreDashboardResponse;
 import pe.edu.pucp.signaedu.signaedu_backend.dto.response.SaaneeDashboardResponse;
+import pe.edu.pucp.signaedu.signaedu_backend.dto.response.UsuarioBitacoraResponse;
+import pe.edu.pucp.signaedu.signaedu_backend.mapper.UsuarioMapper;
 import pe.edu.pucp.signaedu.signaedu_backend.model.Alumno;
+import pe.edu.pucp.signaedu.signaedu_backend.model.EntradaExpediente;
 import pe.edu.pucp.signaedu.signaedu_backend.model.Expediente;
 import pe.edu.pucp.signaedu.signaedu_backend.model.Rol;
 import pe.edu.pucp.signaedu.signaedu_backend.model.Usuario;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.EstadoAlumno;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.EstadoExpediente;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.EstadoUsuario;
+import pe.edu.pucp.signaedu.signaedu_backend.model.enums.TipoEntrada;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.TipoRol;
 import pe.edu.pucp.signaedu.signaedu_backend.repository.AlumnoRepository;
 import pe.edu.pucp.signaedu.signaedu_backend.repository.EntradaExpedienteRepository;
@@ -58,6 +65,9 @@ class DashboardServiceTest {
 
     @Mock
     private ConfiguracionService configuracionService;
+
+    @Mock
+    private UsuarioMapper usuarioMapper;
 
     @InjectMocks
     private DashboardService dashboardService;
@@ -195,5 +205,86 @@ class DashboardServiceTest {
         SaaneeDashboardResponse resumen = dashboardService.obtenerResumenSaanee();
 
         assertThat(resumen.getTotalAlumnosActivos()).isEqualTo(50L);
+    }
+
+    @Test
+    void obtenerActividadRecienteDocente_devuelveEntradasMapeadasConAlumnoYAutor() {
+        Usuario docente = usuarioConRol(TipoRol.DOCENTE);
+        autenticarComo(docente);
+
+        Alumno carlos = alumno(7L, "Carlos");
+        Expediente expediente = Expediente.builder().id(70L).alumno(carlos).build();
+        Usuario autor = usuarioConRol(TipoRol.PADRE);
+        EntradaExpediente entrada = EntradaExpediente.builder()
+                .id(101L)
+                .tipoEntrada(TipoEntrada.COMUNICACION_FAMILIAR)
+                .fecha(LocalDate.of(2026, 5, 25).atStartOfDay())
+                .expediente(expediente)
+                .usuario(autor)
+                .titulo("Consulta sobre tarea")
+                .descripcion("Hola profe, ¿podría confirmar la entrega?")
+                .build();
+        when(entradaExpedienteRepository.obtenerActividadRecienteDeDocente(
+                eq(docente.getId()), any(Pageable.class))).thenReturn(List.of(entrada));
+        when(usuarioMapper.toBitacoraResponse(autor)).thenReturn(
+                UsuarioBitacoraResponse.builder()
+                        .id(autor.getId()).nombre("Padre").apellido("X").rol("PADRE").build());
+
+        List<ActividadEntradaResponse> actividad = dashboardService.obtenerActividadRecienteDocente(5);
+
+        assertThat(actividad).hasSize(1);
+        ActividadEntradaResponse r = actividad.get(0);
+        assertThat(r.getId()).isEqualTo(101L);
+        assertThat(r.getTipo()).isEqualTo(TipoEntrada.COMUNICACION_FAMILIAR);
+        assertThat(r.getAlumnoId()).isEqualTo(7L);
+        assertThat(r.getAlumnoNombre()).isEqualTo("Carlos");
+        assertThat(r.getTitulo()).isEqualTo("Consulta sobre tarea");
+        assertThat(r.getAutor().getRol()).isEqualTo("PADRE");
+    }
+
+    @Test
+    void obtenerActividadRecienteDocente_pasaElLimitComoPageable() {
+        Usuario docente = usuarioConRol(TipoRol.DOCENTE);
+        autenticarComo(docente);
+        when(entradaExpedienteRepository.obtenerActividadRecienteDeDocente(
+                eq(docente.getId()), any(Pageable.class))).thenReturn(List.of());
+
+        dashboardService.obtenerActividadRecienteDocente(3);
+
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(entradaExpedienteRepository)
+                .obtenerActividadRecienteDeDocente(eq(docente.getId()), pageableCaptor.capture());
+        Pageable used = pageableCaptor.getValue();
+        assertThat(used).isEqualTo(PageRequest.of(0, 3));
+    }
+
+    @Test
+    void obtenerActividadRecienteDocente_normalizaLimitMenorAUno() {
+        Usuario docente = usuarioConRol(TipoRol.DOCENTE);
+        autenticarComo(docente);
+        when(entradaExpedienteRepository.obtenerActividadRecienteDeDocente(
+                eq(docente.getId()), any(Pageable.class))).thenReturn(List.of());
+
+        dashboardService.obtenerActividadRecienteDocente(0);
+
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(entradaExpedienteRepository)
+                .obtenerActividadRecienteDeDocente(eq(docente.getId()), pageableCaptor.capture());
+        assertThat(pageableCaptor.getValue()).isEqualTo(PageRequest.of(0, 1));
+    }
+
+    @Test
+    void obtenerActividadRecienteDocente_normalizaLimitMayorAVeinte() {
+        Usuario docente = usuarioConRol(TipoRol.DOCENTE);
+        autenticarComo(docente);
+        when(entradaExpedienteRepository.obtenerActividadRecienteDeDocente(
+                eq(docente.getId()), any(Pageable.class))).thenReturn(List.of());
+
+        dashboardService.obtenerActividadRecienteDocente(500);
+
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(entradaExpedienteRepository)
+                .obtenerActividadRecienteDeDocente(eq(docente.getId()), pageableCaptor.capture());
+        assertThat(pageableCaptor.getValue()).isEqualTo(PageRequest.of(0, 20));
     }
 }

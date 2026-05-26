@@ -1,16 +1,20 @@
 package pe.edu.pucp.signaedu.signaedu_backend.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import pe.edu.pucp.signaedu.signaedu_backend.dto.response.ActividadEntradaResponse;
 import pe.edu.pucp.signaedu.signaedu_backend.dto.response.AdminDashboardResponse;
 import pe.edu.pucp.signaedu.signaedu_backend.dto.response.DocenteDashboardResponse;
 import pe.edu.pucp.signaedu.signaedu_backend.dto.response.HijoResumen;
 import pe.edu.pucp.signaedu.signaedu_backend.dto.response.PadreDashboardResponse;
 import pe.edu.pucp.signaedu.signaedu_backend.dto.response.SaaneeDashboardResponse;
 import pe.edu.pucp.signaedu.signaedu_backend.exception.ResourceNotFoundException;
+import pe.edu.pucp.signaedu.signaedu_backend.mapper.UsuarioMapper;
 import pe.edu.pucp.signaedu.signaedu_backend.model.Alumno;
+import pe.edu.pucp.signaedu.signaedu_backend.model.EntradaExpediente;
 import pe.edu.pucp.signaedu.signaedu_backend.model.Usuario;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.EstadoAlumno;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.EstadoExpediente;
@@ -37,6 +41,7 @@ public class DashboardService {
     private final ExpedienteRepository expedienteRepository;
     private final EntradaExpedienteRepository entradaExpedienteRepository;
     private final ConfiguracionService configuracionService;
+    private final UsuarioMapper usuarioMapper;
 
     public AdminDashboardResponse obtenerResumenAdmin() {
         String periodo = configuracionService.obtenerValorPeriodo();
@@ -67,6 +72,16 @@ public class DashboardService {
                 .alumnosSinPerfilDiscapacidad(alumnoRepository
                         .contarAsignadosSinPerfilDiscapacidad(docente.getId()))
                 .build();
+    }
+
+    public List<ActividadEntradaResponse> obtenerActividadRecienteDocente(int limit) {
+        // Normaliza límite recibido: [1, 20]. Previene errores de PageRequest
+        // ante 0/negativos y limita el tamaño de respuesta ante valores exorbitantes.
+        int limiteSeguro = Math.min(Math.max(limit, 1), 20);
+        Usuario docente = obtenerUsuarioAutenticado();
+        List<EntradaExpediente> entradas = entradaExpedienteRepository
+                .obtenerActividadRecienteDeDocente(docente.getId(), PageRequest.of(0, limiteSeguro));
+        return entradas.stream().map(this::toActividadResponse).toList();
     }
 
     public PadreDashboardResponse obtenerResumenPadre() {
@@ -112,5 +127,20 @@ public class DashboardService {
                 .findByAlumnoIdAndPeriodoLectivoAndEstado(alumnoId, periodo, EstadoExpediente.ACTIVO)
                 .map(e -> e.getId())
                 .orElse(null);
+    }
+
+    private ActividadEntradaResponse toActividadResponse(EntradaExpediente entrada) {
+        Alumno alumno = entrada.getExpediente().getAlumno();
+        return ActividadEntradaResponse.builder()
+                .id(entrada.getId())
+                .tipo(entrada.getTipoEntrada())
+                .fecha(entrada.getFecha())
+                .autor(usuarioMapper.toBitacoraResponse(entrada.getUsuario()))
+                .alumnoId(alumno.getId())
+                .alumnoNombre(alumno.getNombre())
+                .alumnoApellido(alumno.getApellido())
+                .titulo(entrada.getTitulo())
+                .descripcion(entrada.getDescripcion())
+                .build();
     }
 }

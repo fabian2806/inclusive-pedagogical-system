@@ -1,5 +1,6 @@
 package pe.edu.pucp.signaedu.signaedu_backend.repository;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -7,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import pe.edu.pucp.signaedu.signaedu_backend.model.EntradaExpediente;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public interface EntradaExpedienteRepository
         extends JpaRepository<EntradaExpediente, Long>,
@@ -33,4 +35,15 @@ public interface EntradaExpedienteRepository
             """)
     long contarEntradasDesdeFechaParaPadre(@Param("padreId") Long padreId,
                                            @Param("desde") LocalDateTime desde);
+
+    @Query("""
+            SELECT e FROM EntradaExpediente e
+            JOIN e.expediente exp
+            JOIN exp.alumno a
+            JOIN a.docentes d
+            WHERE d.id = :docenteId
+            ORDER BY e.fecha DESC
+            """)
+    List<EntradaExpediente> obtenerActividadRecienteDeDocente(@Param("docenteId") Long docenteId,
+                                                              Pageable pageable);
 }
