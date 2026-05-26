@@ -11,8 +11,6 @@ import pe.edu.pucp.signaedu.signaedu_backend.dto.request.AlumnoUpdateRequest;
 import pe.edu.pucp.signaedu.signaedu_backend.dto.response.AlumnoResponse;
 import pe.edu.pucp.signaedu.signaedu_backend.service.AlumnoService;
 
-import java.util.List;
-
 @RestController
 @RequestMapping("/admin/alumnos")
 @RequiredArgsConstructor
@@ -24,18 +22,6 @@ public class AlumnoController {
     @PreAuthorize("hasAuthority('ALUMNO_CREAR')")
     public ResponseEntity<AlumnoResponse> crearAlumno(@Valid @RequestBody AlumnoCreateRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(alumnoService.crearAlumno(request));
-    }
-
-    @GetMapping
-    @PreAuthorize("hasAuthority('ALUMNO_LEER')")
-    public ResponseEntity<List<AlumnoResponse>> listarAlumnos() {
-        return ResponseEntity.ok(alumnoService.listarAlumnos());
-    }
-
-    @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('ALUMNO_LEER')")
-    public ResponseEntity<AlumnoResponse> obtenerAlumno(@PathVariable Long id) {
-        return ResponseEntity.ok(alumnoService.obtenerAlumnoPorId(id));
     }
 
     @PutMapping("/{id}")
