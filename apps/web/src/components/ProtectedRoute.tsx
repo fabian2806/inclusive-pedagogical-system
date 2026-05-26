@@ -6,9 +6,14 @@ import { Loader2 } from 'lucide-react'
 interface ProtectedRouteProps {
   children: React.ReactNode
   allowedRoles?: UserRole[]
+  requiredPermissions?: string[]
 }
 
-export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
+export function ProtectedRoute({
+  children,
+  allowedRoles,
+  requiredPermissions,
+}: ProtectedRouteProps) {
   const { isAuthenticated, isLoading, user } = useAuth()
 
   if (isLoading) {
@@ -25,6 +30,13 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
 
   if (allowedRoles && user && !allowedRoles.includes(user.rol)) {
     return <Navigate to="/dashboard" replace />
+  }
+
+  if (requiredPermissions && requiredPermissions.length > 0 && user) {
+    const tieneTodos = requiredPermissions.every((p) => user.authorities.includes(p))
+    if (!tieneTodos) {
+      return <Navigate to="/dashboard" replace />
+    }
   }
 
   return <>{children}</>
