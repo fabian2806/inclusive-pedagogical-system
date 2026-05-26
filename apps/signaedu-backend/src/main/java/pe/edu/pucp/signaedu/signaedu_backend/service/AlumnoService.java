@@ -1,6 +1,8 @@
 package pe.edu.pucp.signaedu.signaedu_backend.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pe.edu.pucp.signaedu.signaedu_backend.dto.request.AlumnoCreateRequest;
@@ -50,7 +52,9 @@ public class AlumnoService {
 
     @Transactional(readOnly = true)
     public List<AlumnoResponse> listarAlumnos() {
-        return alumnoRepository.findAll().stream()
+        Usuario usuario = obtenerUsuarioAutenticado();
+        List<Alumno> alumnos = listarSegunRol(usuario);
+        return alumnos.stream()
                 .map(alumnoMapper::toResponse)
                 .toList();
     }
@@ -59,6 +63,12 @@ public class AlumnoService {
     public AlumnoResponse obtenerAlumnoPorId(Long id) {
         Alumno alumno = alumnoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Alumno", "id", id));
+
+        Usuario usuario = obtenerUsuarioAutenticado();
+        if (!tieneAccesoAlumno(usuario, id)) {
+            throw new AccessDeniedException("No tiene acceso al alumno con id " + id);
+        }
+
         return alumnoMapper.toResponse(alumno);
     }
 
@@ -143,5 +153,42 @@ public class AlumnoService {
             throw new IllegalOperationException(
                     String.format("El usuario con id %d no tiene rol %s", usuario.getId(), rolEsperado));
         }
+    }
+
+    private Usuario obtenerUsuarioAutenticado() {
+        String correo = SecurityContextHolder.getContext().getAuthentication().getName();
+        return usuarioRepository.findByCorreo(correo)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario", "correo", correo));
+    }
+
+    private List<Alumno> listarSegunRol(Usuario usuario) {
+        // Visibilidad de alumnos por rol (decisión de sistema):
+        //   ADMIN, SAANEE → todos los alumnos
+        //   DOCENTE → solo los alumnos asignados (docente_alumno)
+        //   PADRE → solo los hijos vinculados (padre_alumno)
+        for (TipoRol rol : usuario.getRoles().stream().map(r -> r.getNombre()).toList()) {
+            switch (rol) {
+                case ADMIN, SAANEE -> {
+                    return alumnoRepository.findAll();
+                }
+                case DOCENTE -> {
+                    return alumnoRepository.findByDocentes_Id(usuario.getId());
+                }
+                case PADRE -> {
+                    return alumnoRepository.findByPadres_Id(usuario.getId());
+                }
+            }
+        }
+        return List.of();
+    }
+
+    private boolean tieneAccesoAlumno(Usuario usuario, Long alumnoId) {
+        return usuario.getRoles().stream()
+                .map(r -> r.getNombre())
+                .anyMatch(rol -> switch (rol) {
+                    case ADMIN, SAANEE -> true;
+                    case DOCENTE -> alumnoRepository.existsByIdAndDocentesId(alumnoId, usuario.getId());
+                    case PADRE -> alumnoRepository.existsByIdAndPadresId(alumnoId, usuario.getId());
+                });
     }
 }

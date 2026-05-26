@@ -1,10 +1,15 @@
 package pe.edu.pucp.signaedu.signaedu_backend.service;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import pe.edu.pucp.signaedu.signaedu_backend.dto.request.AlumnoCreateRequest;
 import pe.edu.pucp.signaedu.signaedu_backend.dto.request.AlumnoUpdateRequest;
 import pe.edu.pucp.signaedu.signaedu_backend.dto.response.AlumnoResponse;
@@ -24,6 +29,7 @@ import pe.edu.pucp.signaedu.signaedu_backend.repository.UsuarioRepository;
 import java.time.LocalDate;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -93,6 +99,17 @@ class AlumnoServiceTest {
                 .build();
     }
 
+    private void autenticarComo(Usuario usuario) {
+        Authentication auth = new UsernamePasswordAuthenticationToken(usuario.getCorreo(), null);
+        SecurityContextHolder.getContext().setAuthentication(auth);
+        when(usuarioRepository.findByCorreo(usuario.getCorreo())).thenReturn(Optional.of(usuario));
+    }
+
+    @AfterEach
+    void limpiarSecurityContext() {
+        SecurityContextHolder.clearContext();
+    }
+
     @Test
     void debeCrearAlumnoCorrectamente() {
         AlumnoCreateRequest request = new AlumnoCreateRequest();
@@ -144,7 +161,8 @@ class AlumnoServiceTest {
     }
 
     @Test
-    void debeObtenerAlumnoPorId() {
+    void debeObtenerAlumnoPorIdComoAdmin() {
+        autenticarComo(usuarioConRol(TipoRol.ADMIN));
         when(alumnoRepository.findById(1L)).thenReturn(Optional.of(alumno()));
         when(alumnoMapper.toResponse(any(Alumno.class))).thenReturn(alumnoResponse());
 
@@ -159,6 +177,75 @@ class AlumnoServiceTest {
 
         assertThatThrownBy(() -> alumnoService.obtenerAlumnoPorId(99L))
                 .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void debeLanzarAccessDeniedAlObtenerAlumnoNoAccesibleParaDocente() {
+        Usuario docente = usuarioConRol(TipoRol.DOCENTE);
+        autenticarComo(docente);
+        when(alumnoRepository.findById(1L)).thenReturn(Optional.of(alumno()));
+        when(alumnoRepository.existsByIdAndDocentesId(1L, docente.getId())).thenReturn(false);
+
+        assertThatThrownBy(() -> alumnoService.obtenerAlumnoPorId(1L))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void listarAlumnos_comoAdmin_devuelveTodos() {
+        autenticarComo(usuarioConRol(TipoRol.ADMIN));
+        when(alumnoRepository.findAll()).thenReturn(List.of(alumno()));
+        when(alumnoMapper.toResponse(any(Alumno.class))).thenReturn(alumnoResponse());
+
+        List<AlumnoResponse> resultado = alumnoService.listarAlumnos();
+
+        assertThat(resultado).hasSize(1);
+        verify(alumnoRepository).findAll();
+        verify(alumnoRepository, never()).findByDocentes_Id(any());
+        verify(alumnoRepository, never()).findByPadres_Id(any());
+    }
+
+    @Test
+    void listarAlumnos_comoSaanee_devuelveTodosLosAlumnos() {
+        autenticarComo(usuarioConRol(TipoRol.SAANEE));
+        when(alumnoRepository.findAll()).thenReturn(List.of(alumno(), alumno()));
+        when(alumnoMapper.toResponse(any(Alumno.class))).thenReturn(alumnoResponse());
+
+        List<AlumnoResponse> resultado = alumnoService.listarAlumnos();
+
+        assertThat(resultado).hasSize(2);
+        verify(alumnoRepository).findAll();
+        verify(alumnoRepository, never()).findByDocentes_Id(any());
+        verify(alumnoRepository, never()).findByPadres_Id(any());
+    }
+
+    @Test
+    void listarAlumnos_comoDocente_devuelveSoloAsignados() {
+        Usuario docente = usuarioConRol(TipoRol.DOCENTE);
+        autenticarComo(docente);
+        when(alumnoRepository.findByDocentes_Id(docente.getId())).thenReturn(List.of(alumno()));
+        when(alumnoMapper.toResponse(any(Alumno.class))).thenReturn(alumnoResponse());
+
+        List<AlumnoResponse> resultado = alumnoService.listarAlumnos();
+
+        assertThat(resultado).hasSize(1);
+        verify(alumnoRepository).findByDocentes_Id(docente.getId());
+        verify(alumnoRepository, never()).findAll();
+        verify(alumnoRepository, never()).findByPadres_Id(any());
+    }
+
+    @Test
+    void listarAlumnos_comoPadre_devuelveSoloHijos() {
+        Usuario padre = usuarioConRol(TipoRol.PADRE);
+        autenticarComo(padre);
+        when(alumnoRepository.findByPadres_Id(padre.getId())).thenReturn(List.of(alumno()));
+        when(alumnoMapper.toResponse(any(Alumno.class))).thenReturn(alumnoResponse());
+
+        List<AlumnoResponse> resultado = alumnoService.listarAlumnos();
+
+        assertThat(resultado).hasSize(1);
+        verify(alumnoRepository).findByPadres_Id(padre.getId());
+        verify(alumnoRepository, never()).findAll();
+        verify(alumnoRepository, never()).findByDocentes_Id(any());
     }
 
     @Test
