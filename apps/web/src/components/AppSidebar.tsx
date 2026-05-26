@@ -1,51 +1,51 @@
 import { useAuth } from "@/hooks/useAuth";
 import type { UserRole } from "@/types/auth";
 import { getRoleDisplayName, getRoleColor } from "@/lib/roles"
-import { BarChart3, Calendar, FileText, FolderCog, GraduationCap, LayoutDashboard, LogOut, MessageSquare, Settings, Shield, Target, UserCog, Users } from "lucide-react";
-import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, 
+import { Calendar, FolderCog, GraduationCap, LayoutDashboard, LogOut, Settings, Target, UserCog, Users } from "lucide-react";
+import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
     SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarSeparator } from "@/components/ui/sidebar"
+import { Badge } from "@/components/ui/badge"
 import { Link, useLocation } from "react-router-dom";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
-//Opciones del sidebar de acuerdo al rol del usuario (por ahora algunas opciones son referenciales, pueden variar según necesidades)
-const menuConfig: Record<UserRole, { title: string; url: string; icon: typeof LayoutDashboard }[]> = {
+type MenuItem = {
+    title: string
+    url?: string
+    icon: typeof LayoutDashboard
+    disabled?: boolean
+    badge?: string
+}
+
+// Items del sidebar por rol. Los items con `disabled: true` corresponden a
+// módulos planificados para Fase 4 (eventos / coordinación) y se muestran
+// como placeholders no clickeables.
+const menuConfig: Record<UserRole, MenuItem[]> = {
     admin: [
         { title: "Inicio", url: "/dashboard", icon: LayoutDashboard },
         { title: "Usuarios", url: "/dashboard/admin/usuarios", icon: UserCog },
         { title: "Estudiantes", url: "/dashboard/admin/estudiantes", icon: Users },
         { title: "Tipos Documento", url: "/dashboard/admin/tipos-documento", icon: FolderCog },
-        { title: "Eventos", url: "/dashboard/admin/eventos", icon: Calendar },
-        { title: "Reportes", url: "/dashboard/admin/reportes", icon: BarChart3 },
-        { title: "Configuración", url: "/dashboard/admin/configuracion", icon: Settings }
+        { title: "Eventos", icon: Calendar, disabled: true, badge: "Próximamente" },
+        { title: "Configuración", url: "/dashboard/admin/configuracion", icon: Settings },
     ],
     docente: [
         { title: "Inicio", url: "/dashboard", icon: LayoutDashboard },
         { title: "Estudiantes", url: "/dashboard/estudiantes", icon: Users },
         { title: "Indicadores", url: "/dashboard/indicadores", icon: Target },
-        { title: "Eventos", url: "/dashboard/eventos", icon: Calendar },
-        { title: "Informes", url: "/dashboard/informes", icon: FileText },
+        { title: "Eventos", icon: Calendar, disabled: true, badge: "Próximamente" },
     ],
     padre: [
         { title: "Inicio", url: "/dashboard", icon: LayoutDashboard },
-        { title: "Mi Hijo/a", url: "/dashboard/estudiantes/1", icon: Users },
-        { title: "Comunicación", url: "/dashboard/comunicacion", icon: MessageSquare },
-        { title: "Eventos", url: "/dashboard/eventos", icon: Calendar },
+        { title: "Mis Hijos", url: "/dashboard/estudiantes", icon: Users },
+        { title: "Eventos", icon: Calendar, disabled: true, badge: "Próximamente" },
     ],
     saanee: [
         { title: "Inicio", url: "/dashboard", icon: LayoutDashboard },
         { title: "Estudiantes", url: "/dashboard/estudiantes", icon: Users },
-        { title: "Evaluaciones", url: "/dashboard/evaluaciones", icon: FileText },
-        { title: "Eventos", url: "/dashboard/eventos", icon: Calendar },
-        { title: "Coordinación", url: "/dashboard/coordinacion", icon: Shield },
+        { title: "Eventos", icon: Calendar, disabled: true, badge: "Próximamente" },
     ],
 }
 
-//Opciones comunes a todos los roles (por ahora algunas opciones son referenciales, pueden variar según necesidades)
-const secondaryItems = [
-    { title: "Configuración", url: "/dashboard/configuracion", icon: Settings },
-]
-
-//Label a mostrar en el panel de acuerdo al rol
 const panelLabels: Record<UserRole, string> = {
   admin: "Panel Admin",
   docente: "Panel Docente",
@@ -56,7 +56,7 @@ const panelLabels: Record<UserRole, string> = {
 export function AppSidebar() {
 
     const location = useLocation()
-    const pathname = location.pathname 
+    const pathname = location.pathname
 
     const { user, logout } = useAuth()
 
@@ -89,10 +89,34 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => {
-                const isActive = 
-                  pathname === item.url || 
-                  (pathname.startsWith(item.url + "/") && item.url !== "/dashboard")
-                
+                if (item.disabled) {
+                  return (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton
+                        disabled
+                        aria-disabled="true"
+                        className="opacity-50 cursor-not-allowed"
+                      >
+                        <item.icon size={18} />
+                        <span className="flex-1">{item.title}</span>
+                        {item.badge && (
+                          <Badge
+                            variant="secondary"
+                            className="ml-auto text-[9px] px-1.5 py-0 h-4 font-normal"
+                          >
+                            {item.badge}
+                          </Badge>
+                        )}
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )
+                }
+
+                const url = item.url!
+                const isActive =
+                  pathname === url ||
+                  (pathname.startsWith(url + "/") && url !== "/dashboard")
+
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton
@@ -100,7 +124,7 @@ export function AppSidebar() {
                       isActive={isActive}
                       className="data-[active=true]:bg-[#EEF2FF] data-[active=true]:text-[#3B82F6] hover:bg-[#F3F4F6]"
                     >
-                      <Link to={item.url}>
+                      <Link to={url}>
                         <item.icon size={18} />
                         <span>{item.title}</span>
                       </Link>
@@ -108,30 +132,6 @@ export function AppSidebar() {
                   </SidebarMenuItem>
                 )
               })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-[10px] uppercase tracking-wider text-[#9CA3AF] font-semibold">
-            Sistema
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {secondaryItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname === item.url}
-                    className="data-[active=true]:bg-[#EEF2FF] data-[active=true]:text-[#3B82F6] hover:bg-[#F3F4F6]"
-                  >
-                    <Link to={item.url}>
-                      <item.icon size={18} />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
