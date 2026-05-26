@@ -34,7 +34,7 @@ describe('alumnosService', () => {
 
     const result = await alumnosService.listar()
 
-    expect(mockedClient.get).toHaveBeenCalledWith('/admin/alumnos')
+    expect(mockedClient.get).toHaveBeenCalledWith('/alumnos')
     expect(result).toHaveLength(1)
   })
 

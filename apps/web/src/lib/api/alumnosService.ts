@@ -12,12 +12,12 @@ export const alumnosService = {
   },
 
   async listar(): Promise<AlumnoResponse[]> {
-    const response = await apiClient.get<AlumnoResponse[]>('/admin/alumnos')
+    const response = await apiClient.get<AlumnoResponse[]>('/alumnos')
     return response.data
   },
 
   async obtener(id: number): Promise<AlumnoResponse> {
-    const response = await apiClient.get<AlumnoResponse>(`/admin/alumnos/${id}`)
+    const response = await apiClient.get<AlumnoResponse>(`/alumnos/${id}`)
     return response.data
   },
 
