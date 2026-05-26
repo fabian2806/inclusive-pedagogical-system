@@ -1,10 +1,8 @@
 import { Link } from "react-router-dom"
-import { MoreVertical, Eye, FileText, Calendar } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import type { AlumnoResponse } from "@/types/api"
 
 interface StudentCardProps {
@@ -18,47 +16,21 @@ export function StudentCard({ alumno }: StudentCardProps) {
   return (
     <Card className="border-[#E5E7EB] hover:shadow-md transition-shadow">
       <CardContent className="p-4">
-        {/* Header con avatar y menú */}
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex items-center gap-3">
-            <Avatar className="h-11 w-11">
-              <AvatarFallback className="text-sm font-semibold bg-[#EEF2FF] text-[#3B82F6]">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
-            <div>
-              <p className="text-sm font-semibold text-[#1E3A5F]">
-                {alumno.nombre} {alumno.apellido}
-              </p>
-              <p className="text-xs text-[#6B7280]">
-                {alumno.grado} · Sección {alumno.seccion}
-              </p>
-            </div>
+        {/* Header con avatar y datos básicos */}
+        <div className="flex items-center gap-3 mb-3">
+          <Avatar className="h-11 w-11">
+            <AvatarFallback className="text-sm font-semibold bg-[#EEF2FF] text-[#3B82F6]">
+              {initials}
+            </AvatarFallback>
+          </Avatar>
+          <div>
+            <p className="text-sm font-semibold text-[#1E3A5F]">
+              {alumno.nombre} {alumno.apellido}
+            </p>
+            <p className="text-xs text-[#6B7280]">
+              {alumno.grado} · Sección {alumno.seccion}
+            </p>
           </div>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-[#9CA3AF]">
-                <MoreVertical size={16} />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem asChild>
-                <Link to={`/dashboard/estudiantes/${alumno.id}/expediente`}>
-                  <Eye size={14} className="mr-2" />
-                  Ver expediente
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <FileText size={14} className="mr-2" />
-                Nueva entrada
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Calendar size={14} className="mr-2" />
-                Programar evento
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
 
         {/* Estado y fecha nacimiento */}
