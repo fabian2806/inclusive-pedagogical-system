@@ -348,3 +348,49 @@ export interface CierrePeriodoResponse {
   periodoLectivo: string
   expedientesCerrados: number
 }
+
+// --- Dashboard (Fase 3) ---
+
+export interface AdminDashboardResponse {
+  totalUsuarios: number
+  totalAlumnosActivos: number
+  expedientesAbiertos: number
+  periodoVigente: string
+  usuariosPorRol: Record<TipoRol, number>
+}
+
+export interface DocenteDashboardResponse {
+  alumnosAsignados: number
+  entradasBitacoraHoy: number
+  alumnosSinPerfilDiscapacidad: number
+}
+
+export interface HijoResumen {
+  id: number
+  nombre: string
+  apellido: string
+  grado: string
+  seccion: string
+  expedienteId: number | null
+}
+
+export interface PadreDashboardResponse {
+  hijos: HijoResumen[]
+  entradasNuevasHoy: number
+}
+
+export interface SaaneeDashboardResponse {
+  totalAlumnosActivos: number
+}
+
+export interface ActividadEntradaResponse {
+  id: number
+  tipo: TipoEntrada
+  fecha: string  // LocalDateTime ISO
+  autor: UsuarioBitacoraResponse
+  alumnoId: number
+  alumnoNombre: string
+  alumnoApellido: string
+  titulo: string | null
+  descripcion: string
+}
