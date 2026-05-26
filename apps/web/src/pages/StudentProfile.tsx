@@ -105,13 +105,6 @@ const COLOR_APOYO: Record<string, { bg: string; border: string; text: string }> 
 
 const DEFAULT_COLOR = { bg: "#F9FAFB", border: "#E5E7EB", text: "#6B7280" }
 
-// Mock data
-const academicHistory = [
-  { year: "2025", grade: "3° Primaria", status: "En curso" },
-  { year: "2024", grade: "2° Primaria", status: "Aprobado" },
-  { year: "2023", grade: "1° Primaria", status: "Aprobado" },
-]
-
 export default function StudentProfile() {
   const { id } = useParams()
   const { user } = useAuth()
@@ -355,26 +348,6 @@ export default function StudentProfile() {
                   </div>
                 </div>
               )}
-            </CardContent>
-          </Card>
-
-          {/* Academic History */}
-          <Card className="border-[#E5E7EB]">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold text-[#1E3A5F] flex items-center gap-2"><GraduationCap size={18} className="text-[#3B82F6]" />Historial académico</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {academicHistory.map((item, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-3 rounded-lg bg-[#F9FAFB]">
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-medium text-[#1E3A5F]">{item.year}</span>
-                      <span className="text-sm text-[#6B7280]">{item.grade}</span>
-                    </div>
-                    <Badge variant="outline" className={`text-xs ${item.status === "En curso" ? "border-[#3B82F6] text-[#3B82F6] bg-[#EEF2FF]" : "border-[#10B981] text-[#059669] bg-[#D1FAE5]"}`}>{item.status}</Badge>
-                  </div>
-                ))}
-              </div>
             </CardContent>
           </Card>
 
