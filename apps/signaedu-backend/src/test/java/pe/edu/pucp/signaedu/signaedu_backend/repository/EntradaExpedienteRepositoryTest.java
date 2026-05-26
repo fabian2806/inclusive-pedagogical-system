@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.test.context.ActiveProfiles;
@@ -38,14 +39,18 @@ class EntradaExpedienteRepositoryTest {
     @Autowired
     private EntradaExpedienteRepository entradaRepository;
 
+    private Rol rolDocente;
+    private Rol rolPadre;
     private Usuario autor;
+    private Alumno alumnoA;
+    private Alumno alumnoB;
     private Expediente expedienteA;
     private Expediente expedienteB;
 
     @BeforeEach
     void setUp() {
-        Rol rolDocente = entityManager.persistAndFlush(
-                Rol.builder().nombre(TipoRol.DOCENTE).build());
+        rolDocente = entityManager.persistAndFlush(Rol.builder().nombre(TipoRol.DOCENTE).build());
+        rolPadre = entityManager.persistAndFlush(Rol.builder().nombre(TipoRol.PADRE).build());
 
         autor = Usuario.builder()
                 .nombre("María").apellido("Torres")
@@ -57,11 +62,11 @@ class EntradaExpedienteRepositoryTest {
                 .build();
         autor = entityManager.persistAndFlush(autor);
 
-        Alumno alumno = entityManager.persistAndFlush(crearAlumno("Carlos"));
-        Alumno otroAlumno = entityManager.persistAndFlush(crearAlumno("Ana"));
+        alumnoA = entityManager.persistAndFlush(crearAlumno("Carlos"));
+        alumnoB = entityManager.persistAndFlush(crearAlumno("Ana"));
 
-        expedienteA = entityManager.persistAndFlush(crearExpediente(alumno, "2026"));
-        expedienteB = entityManager.persistAndFlush(crearExpediente(otroAlumno, "2026"));
+        expedienteA = entityManager.persistAndFlush(crearExpediente(alumnoA, "2026"));
+        expedienteB = entityManager.persistAndFlush(crearExpediente(alumnoB, "2026"));
     }
 
     private Alumno crearAlumno(String nombre) {
@@ -179,5 +184,133 @@ class EntradaExpedienteRepositoryTest {
 
         assertThat(resultado).hasSize(1);
         assertThat(resultado.get(0).getDescripcion()).isEqualTo("del-A");
+    }
+
+    // ---------- Queries de dashboard (Fase 3) ----------
+
+    private Usuario crearUsuario(String correo, TipoRol rol) {
+        Rol rolEntity = switch (rol) {
+            case DOCENTE -> rolDocente;
+            case PADRE -> rolPadre;
+            default -> throw new IllegalArgumentException("Rol no soportado en este helper: " + rol);
+        };
+        return entityManager.persistAndFlush(Usuario.builder()
+                .nombre("Test").apellido("User")
+                .correo(correo)
+                .telefono("999000000")
+                .passwordHash("hashed")
+                .estado(EstadoUsuario.ACTIVO)
+                .roles(new HashSet<>(Set.of(rolEntity)))
+                .build());
+    }
+
+    private void asignarDocente(Alumno alumno, Usuario docente) {
+        alumno.getDocentes().add(docente);
+        entityManager.persistAndFlush(alumno);
+    }
+
+    private void asignarPadre(Alumno alumno, Usuario padre) {
+        alumno.getPadres().add(padre);
+        entityManager.persistAndFlush(alumno);
+    }
+
+    @Test
+    void contarEntradasDesdeFechaParaDocente_cuentaSoloEnAlumnosAsignados() {
+        Usuario docente2 = crearUsuario("docente2@signaedu.pe", TipoRol.DOCENTE);
+        asignarDocente(alumnoA, docente2);          // alumnoA → docente2
+        // alumnoB queda sin asignar a docente2
+
+        crearEntrada(expedienteA, TipoEntrada.OBSERVACION_PEDAGOGICA, LocalDateTime.now(), "asignado");
+        crearEntrada(expedienteB, TipoEntrada.OBSERVACION_PEDAGOGICA, LocalDateTime.now(), "no-asignado");
+
+        long count = entradaRepository.contarEntradasDesdeFechaParaDocente(
+                docente2.getId(), LocalDate.now().atStartOfDay());
+
+        assertThat(count).isEqualTo(1L);
+    }
+
+    @Test
+    void contarEntradasDesdeFechaParaDocente_excluyeAnterioresAlDesde() {
+        Usuario docente2 = crearUsuario("docente2@signaedu.pe", TipoRol.DOCENTE);
+        asignarDocente(alumnoA, docente2);
+
+        crearEntrada(expedienteA, TipoEntrada.OBSERVACION_PEDAGOGICA,
+                LocalDate.now().minusDays(1).atTime(23, 59), "ayer");
+        crearEntrada(expedienteA, TipoEntrada.APOYO_O_AJUSTE,
+                LocalDate.now().atTime(8, 0), "hoy");
+
+        long count = entradaRepository.contarEntradasDesdeFechaParaDocente(
+                docente2.getId(), LocalDate.now().atStartOfDay());
+
+        assertThat(count).isEqualTo(1L);
+    }
+
+    @Test
+    void contarEntradasDesdeFechaParaPadre_cuentaSoloEnHijos() {
+        Usuario padre = crearUsuario("padre@signaedu.pe", TipoRol.PADRE);
+        asignarPadre(alumnoA, padre);               // alumnoA es hijo del padre
+        // alumnoB no es hijo
+
+        crearEntrada(expedienteA, TipoEntrada.COMUNICACION_FAMILIAR, LocalDateTime.now(), "del-hijo");
+        crearEntrada(expedienteB, TipoEntrada.COMUNICACION_FAMILIAR, LocalDateTime.now(), "no-hijo");
+
+        long count = entradaRepository.contarEntradasDesdeFechaParaPadre(
+                padre.getId(), LocalDate.now().atStartOfDay());
+
+        assertThat(count).isEqualTo(1L);
+    }
+
+    @Test
+    void obtenerActividadRecienteDeDocente_ordenaPorFechaDesc() {
+        Usuario docente2 = crearUsuario("docente2@signaedu.pe", TipoRol.DOCENTE);
+        asignarDocente(alumnoA, docente2);
+
+        crearEntrada(expedienteA, TipoEntrada.OBSERVACION_PEDAGOGICA,
+                LocalDateTime.of(2026, 5, 25, 9, 0), "vieja");
+        crearEntrada(expedienteA, TipoEntrada.APOYO_O_AJUSTE,
+                LocalDateTime.of(2026, 5, 25, 15, 0), "nueva");
+        crearEntrada(expedienteA, TipoEntrada.INCIDENCIA_COMUNICACION,
+                LocalDateTime.of(2026, 5, 25, 12, 0), "media");
+
+        List<EntradaExpediente> resultado = entradaRepository
+                .obtenerActividadRecienteDeDocente(docente2.getId(), PageRequest.of(0, 10));
+
+        assertThat(resultado).hasSize(3);
+        assertThat(resultado.get(0).getDescripcion()).isEqualTo("nueva");
+        assertThat(resultado.get(1).getDescripcion()).isEqualTo("media");
+        assertThat(resultado.get(2).getDescripcion()).isEqualTo("vieja");
+    }
+
+    @Test
+    void obtenerActividadRecienteDeDocente_respetaLimitePageable() {
+        Usuario docente2 = crearUsuario("docente2@signaedu.pe", TipoRol.DOCENTE);
+        asignarDocente(alumnoA, docente2);
+
+        for (int i = 1; i <= 7; i++) {
+            crearEntrada(expedienteA, TipoEntrada.OBSERVACION_PEDAGOGICA,
+                    LocalDateTime.of(2026, 5, 25, i, 0), "entrada-" + i);
+        }
+
+        List<EntradaExpediente> resultado = entradaRepository
+                .obtenerActividadRecienteDeDocente(docente2.getId(), PageRequest.of(0, 3));
+
+        assertThat(resultado).hasSize(3);
+    }
+
+    @Test
+    void obtenerActividadRecienteDeDocente_excluyeAlumnosDeOtroDocente() {
+        Usuario docente2 = crearUsuario("docente2@signaedu.pe", TipoRol.DOCENTE);
+        Usuario otroDocente = crearUsuario("otro@signaedu.pe", TipoRol.DOCENTE);
+        asignarDocente(alumnoA, docente2);
+        asignarDocente(alumnoB, otroDocente);
+
+        crearEntrada(expedienteA, TipoEntrada.OBSERVACION_PEDAGOGICA, LocalDateTime.now(), "del-mio");
+        crearEntrada(expedienteB, TipoEntrada.OBSERVACION_PEDAGOGICA, LocalDateTime.now(), "del-otro");
+
+        List<EntradaExpediente> resultado = entradaRepository
+                .obtenerActividadRecienteDeDocente(docente2.getId(), PageRequest.of(0, 10));
+
+        assertThat(resultado).hasSize(1);
+        assertThat(resultado.get(0).getDescripcion()).isEqualTo("del-mio");
     }
 }
