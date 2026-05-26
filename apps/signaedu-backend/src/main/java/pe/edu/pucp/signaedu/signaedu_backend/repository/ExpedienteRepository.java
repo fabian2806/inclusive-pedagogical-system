@@ -12,4 +12,5 @@ public interface ExpedienteRepository extends JpaRepository<Expediente, Long> {
     List<Expediente> findByPeriodoLectivoAndEstado(String periodoLectivo, EstadoExpediente estado);
     Optional<Expediente> findByAlumnoIdAndPeriodoLectivoAndEstado(
             Long alumnoId, String periodoLectivo, EstadoExpediente estado);
+    long countByPeriodoLectivoAndEstado(String periodoLectivo, EstadoExpediente estado);
 }

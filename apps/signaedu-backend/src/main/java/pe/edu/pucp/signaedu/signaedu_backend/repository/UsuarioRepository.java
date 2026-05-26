@@ -17,4 +17,8 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     List<Usuario> findByRoles_Nombre(TipoRol nombre);
 
     List<Usuario> findByEstado(EstadoUsuario estado);
+
+    long countByEstado(EstadoUsuario estado);
+
+    long countByRoles_Nombre(TipoRol nombre);
 }
