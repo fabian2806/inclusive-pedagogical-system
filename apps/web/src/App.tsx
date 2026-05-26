@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom'
 import Home from '@/pages/Home'
 import Login from '@/pages/Login'
 import { AuthProvider } from '@/contexts/AuthContext'
@@ -21,9 +21,6 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
-          
-          
-          {/*<Route path="/dashboard" element={<ProtectedRoute> <Dashboard /> </ProtectedRoute>}/>*/}
 
           <Route path="/dashboard" element={<ProtectedRoute> <DashboardLayout /> </ProtectedRoute>}>
             <Route index element={<Dashboard />} />
@@ -34,21 +31,29 @@ function App() {
               <Route path=':id/expediente' element={<StudentRecord />} />
             </Route>
 
-            <Route path='indicadores' element={<Indicators />} />
+            <Route
+              path='indicadores'
+              element={
+                <ProtectedRoute allowedRoles={['docente']}>
+                  <Indicators />
+                </ProtectedRoute>
+              }
+            />
 
-            <Route path='admin'>
+            <Route
+              path='admin'
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <Outlet />
+                </ProtectedRoute>
+              }
+            >
               <Route path='usuarios' element={<AdminUsers />} />
               <Route path='estudiantes' element={<AdminStudents />} />
               <Route path='tipos-documento' element={<AdminDocuments />} />
-              <Route path='eventos' element={<div>Admin - Eventos</div>} />
-              <Route path='reportes' element={<div>Admin - Reportes</div>} />
-
               <Route path='configuracion' element={<AdminConfig />} />
             </Route>
           </Route>
-
-
-
         </Routes>
       </AuthProvider>
     </BrowserRouter>
