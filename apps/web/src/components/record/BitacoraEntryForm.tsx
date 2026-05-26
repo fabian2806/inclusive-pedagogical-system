@@ -8,11 +8,6 @@ import type { EntryTypeConfig } from "@/lib/bitacora-ui"
 import type { IndicadorResponse } from "@/types/api"
 import { ACCEPT_EXTENSIONS, formatTamano, validarArchivo } from "@/lib/archivos"
 
-const MOCK_EVENTOS = [
-  { id: "ev-1", label: "Evaluación trimestral · 28 Mar 2025" },
-  { id: "ev-2", label: "Sesión SAANEE · 1 Abr 2025" },
-]
-
 const AREA_LABEL: Record<string, string> = {
   COMUNICACION: "Comunicación",
   MATEMATICA: "Matemática",
@@ -28,7 +23,6 @@ export interface EntryFormState {
   importancia: string
   severidad: string
   indicadorId: string
-  eventoId: string
   resultado: string
   resultadoLogrado: "" | "true" | "false"
   archivos: File[]
@@ -147,7 +141,6 @@ export function BitacoraEntryForm({
                       importancia: !deseleccionar && t.hasImportancia ? f.importancia : "",
                       severidad: !deseleccionar && t.hasSeveridad ? f.severidad : "",
                       indicadorId: !deseleccionar && t.hasIndicador ? f.indicadorId : "",
-                      eventoId: !deseleccionar && t.hasEvento ? f.eventoId : "",
                       resultado: !deseleccionar && t.hasResultado ? f.resultado : "",
                       resultadoLogrado: !deseleccionar && t.hasResultadoLogrado ? f.resultadoLogrado : "",
                     }
@@ -202,7 +195,7 @@ export function BitacoraEntryForm({
         </div>
 
         {/* Conditional fields */}
-        {selectedType && (selectedType.hasImportancia || selectedType.hasSeveridad || selectedType.hasIndicador || selectedType.hasEvento || selectedType.hasResultado || selectedType.hasResultadoLogrado) && (
+        {selectedType && (selectedType.hasImportancia || selectedType.hasSeveridad || selectedType.hasIndicador || selectedType.hasResultado || selectedType.hasResultadoLogrado) && (
           <div className="px-4 pt-2 pb-3 flex flex-wrap gap-2">
             {selectedType.hasImportancia && (
               <Select value={entryForm.importancia} onValueChange={(v) => setEntryForm((f) => ({ ...f, importancia: v }))}>
@@ -239,18 +232,6 @@ export function BitacoraEntryForm({
                       {i.nombre}
                       <span className="text-[#9CA3AF] ml-1">· {AREA_LABEL[i.areaCurricular] ?? i.areaCurricular}</span>
                     </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            {selectedType.hasEvento && (
-              <Select value={entryForm.eventoId} onValueChange={(v) => setEntryForm((f) => ({ ...f, eventoId: v }))}>
-                <SelectTrigger className="h-8 text-xs w-60 bg-white border-[#E5E7EB]">
-                  <SelectValue placeholder="Vincular a evento" />
-                </SelectTrigger>
-                <SelectContent>
-                  {MOCK_EVENTOS.map((e) => (
-                    <SelectItem key={e.id} value={e.id}>{e.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
