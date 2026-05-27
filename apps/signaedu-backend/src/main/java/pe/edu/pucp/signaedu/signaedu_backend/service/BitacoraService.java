@@ -18,6 +18,7 @@ import pe.edu.pucp.signaedu.signaedu_backend.model.Indicador;
 import pe.edu.pucp.signaedu.signaedu_backend.model.Usuario;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.EstadoExpediente;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.TipoEntrada;
+import pe.edu.pucp.signaedu.signaedu_backend.model.enums.TipoNotificacion;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.TipoRol;
 import pe.edu.pucp.signaedu.signaedu_backend.repository.AlumnoRepository;
 import pe.edu.pucp.signaedu.signaedu_backend.repository.EntradaExpedienteRepository;
@@ -59,6 +60,7 @@ public class BitacoraService {
     private final IndicadorRepository indicadorRepository;
     private final ConfiguracionService configuracionService;
     private final EntradaExpedienteMapper mapper;
+    private final NotificacionService notificacionService;
 
     @Transactional
     public EntradaExpedienteResponse crear(Long alumnoId, EntradaExpedienteRequest request) {
@@ -91,7 +93,31 @@ public class BitacoraService {
                 .resultadoLogrado(request.getResultadoLogrado())
                 .build();
 
-        return mapper.toResponse(entradaRepository.save(entrada));
+        EntradaExpediente guardada = entradaRepository.save(entrada);
+
+        // Notificacion automatica: si la entrada esta dirigida a un usuario
+        // distinto del autor, se le avisa con referencia a la entrada.
+        if (dirigidoA != null && !dirigidoA.getId().equals(autor.getId())) {
+            notificacionService.crear(
+                    dirigidoA,
+                    construirMensajeEntradaDirigida(autor, guardada),
+                    TipoNotificacion.ENTRADA_EXPD,
+                    guardada.getId(),
+                    autor);
+        }
+
+        return mapper.toResponse(guardada);
+    }
+
+    private String construirMensajeEntradaDirigida(Usuario autor, EntradaExpediente entrada) {
+        String nombreAutor = autor.getNombre() + " " + autor.getApellido();
+        var alumno = entrada.getExpediente().getAlumno();
+        String nombreAlumno = alumno.getNombre() + " " + alumno.getApellido();
+        String base = nombreAutor + " te escribio en el expediente de " + nombreAlumno;
+        String titulo = entrada.getTitulo();
+        return (titulo != null && !titulo.isBlank())
+                ? base + ": " + titulo
+                : base;
     }
 
     @Transactional(readOnly = true)
