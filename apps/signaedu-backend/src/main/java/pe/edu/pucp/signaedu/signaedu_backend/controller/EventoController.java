@@ -103,4 +103,10 @@ public class EventoController {
                 .status(HttpStatus.CREATED)
                 .body(eventoService.registrarResultado(id, request, archivos));
     }
+
+    @GetMapping("/{id}/resultado")
+    @PreAuthorize("hasAuthority('EVENTO_RESULTADO_LEER')")
+    public ResponseEntity<ResultadoEventoResponse> obtenerResultado(@PathVariable Long id) {
+        return ResponseEntity.ok(eventoService.obtenerResultado(id));
+    }
 }

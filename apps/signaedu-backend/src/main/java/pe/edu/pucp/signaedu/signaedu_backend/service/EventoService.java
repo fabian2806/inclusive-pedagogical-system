@@ -363,6 +363,33 @@ public class EventoService {
                 .build();
     }
 
+    @Transactional(readOnly = true)
+    public ResultadoEventoResponse obtenerResultado(Long eventoId) {
+        Usuario usuario = obtenerUsuarioAutenticado();
+        Evento evento = cargarEvento(eventoId);
+        validarVisibilidad(evento, usuario);
+
+        EntradaExpediente entrada = entradaRepository
+                .findFirstByEvento_IdAndTipoEntrada(eventoId, TipoEntrada.EVENTO_AGENDA)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "ResultadoEvento", "eventoId", eventoId));
+
+        List<EntradaArchivo> archivos = entradaArchivoRepository
+                .findByEntrada_IdOrderByFechaSubidaAsc(entrada.getId());
+
+        return ResultadoEventoResponse.builder()
+                .eventoId(evento.getId())
+                .entradaId(entrada.getId())
+                .titulo(entrada.getTitulo())
+                .descripcion(entrada.getDescripcion())
+                .fecha(entrada.getFecha())
+                .autor(usuarioMapper.toBitacoraResponse(entrada.getUsuario()))
+                .archivos(archivos.stream()
+                        .map(entradaArchivoMapper::toResponse)
+                        .toList())
+                .build();
+    }
+
     // ---------- Helpers de resultado ----------
 
     private Expediente obtenerExpedienteVigenteOLanzar(Long alumnoId) {
