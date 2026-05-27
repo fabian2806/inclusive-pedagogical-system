@@ -14,6 +14,7 @@ import pe.edu.pucp.signaedu.signaedu_backend.model.EventoUsuario;
 import pe.edu.pucp.signaedu.signaedu_backend.model.Usuario;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.EstadoAsistencia;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.EstadoEvento;
+import pe.edu.pucp.signaedu.signaedu_backend.model.enums.TipoNotificacion;
 import pe.edu.pucp.signaedu.signaedu_backend.repository.EventoUsuarioRepository;
 import pe.edu.pucp.signaedu.signaedu_backend.repository.UsuarioRepository;
 
@@ -26,6 +27,7 @@ public class EventoUsuarioService {
     private final EventoUsuarioRepository eventoUsuarioRepository;
     private final UsuarioRepository usuarioRepository;
     private final EventoMapper eventoMapper;
+    private final NotificacionService notificacionService;
 
     @Transactional
     public EventoResponse responder(Long eventoId, ResponderAsistenciaRequest request) {
@@ -56,6 +58,8 @@ public class EventoUsuarioService {
                     "El motivo de rechazo solo aplica cuando el estado es RECHAZADO");
         }
 
+        EstadoAsistencia estadoAnterior = relacion.getEstadoAsistencia();
+
         relacion.setEstadoAsistencia(request.getEstadoAsistencia());
         relacion.setFechaRespuesta(LocalDateTime.now());
         relacion.setMotivoRechazo(
@@ -63,8 +67,37 @@ public class EventoUsuarioService {
                         ? request.getMotivoRechazo()
                         : null);
 
+        // Notifica al creador del evento. Mensaje especifico si el invitado
+        // venia de un CONFIRMADO previo y ahora rechaza (cambio relevante para
+        // que el creador reaccione).
+        boolean cambioDeConfirmadoARechazado =
+                estadoAnterior == EstadoAsistencia.CONFIRMADO
+                        && request.getEstadoAsistencia() == EstadoAsistencia.RECHAZADO;
+        notificacionService.crear(
+                evento.getUsuarioCreador(),
+                construirMensajeRespuesta(usuario, evento, request.getEstadoAsistencia(), cambioDeConfirmadoARechazado),
+                TipoNotificacion.EVENTO,
+                evento.getId(),
+                usuario);
+
         // Reload de invitados via la relacion gestionada; el flush al cierre del @Transactional persiste el cambio.
         return eventoMapper.toResponse(evento, evento.getUsuarioCreador().getId().equals(usuario.getId()));
+    }
+
+    private String construirMensajeRespuesta(Usuario invitado,
+                                             Evento evento,
+                                             EstadoAsistencia nuevo,
+                                             boolean cambioDeConfirmadoARechazado) {
+        String nombre = invitado.getNombre() + " " + invitado.getApellido();
+        String titulo = "\"" + evento.getTitulo() + "\"";
+        if (cambioDeConfirmadoARechazado) {
+            return nombre + " cambio su confirmacion a rechazo en el evento " + titulo;
+        }
+        return switch (nuevo) {
+            case CONFIRMADO -> nombre + " confirmo asistencia al evento " + titulo;
+            case RECHAZADO -> nombre + " rechazo la invitacion al evento " + titulo;
+            default -> nombre + " actualizo su respuesta al evento " + titulo;
+        };
     }
 
     private Usuario obtenerUsuarioAutenticado() {

@@ -35,6 +35,7 @@ import pe.edu.pucp.signaedu.signaedu_backend.model.enums.EstadoEvento;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.EstadoExpediente;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.TipoEntrada;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.TipoEvento;
+import pe.edu.pucp.signaedu.signaedu_backend.model.enums.TipoNotificacion;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.TipoRol;
 import pe.edu.pucp.signaedu.signaedu_backend.repository.AlumnoRepository;
 import pe.edu.pucp.signaedu.signaedu_backend.repository.ArchivoAdjuntoRepository;
@@ -74,6 +75,9 @@ public class EventoService {
     private final ArchivoStorage archivoStorage;
     private final EntradaArchivoMapper entradaArchivoMapper;
     private final UsuarioMapper usuarioMapper;
+
+    // Notificaciones automaticas (4c.2).
+    private final NotificacionService notificacionService;
 
     @Value("${storage.max-bytes:10485760}")
     private long maxBytes;
@@ -124,6 +128,17 @@ public class EventoService {
         agregarInvitadosIniciales(evento, request.getInvitadosUsuarioIds(), creador.getId());
 
         Evento guardado = eventoRepository.save(evento);
+
+        // Notifica a cada invitado inicial.
+        for (EventoUsuario inv : guardado.getInvitados()) {
+            notificacionService.crear(
+                    inv.getUsuario(),
+                    mensajeInvitacion(creador, guardado),
+                    TipoNotificacion.EVENTO,
+                    guardado.getId(),
+                    creador);
+        }
+
         return eventoMapper.toResponse(guardado, true);
     }
 
@@ -214,6 +229,19 @@ public class EventoService {
             }
         }
 
+        // Notifica a todos los invitados; el mensaje cambia segun el tipo de edicion.
+        String mensaje = cambioFecha
+                ? mensajeReprogramacion(solicitante, evento)
+                : mensajeEdicion(solicitante, evento);
+        for (EventoUsuario inv : evento.getInvitados()) {
+            notificacionService.crear(
+                    inv.getUsuario(),
+                    mensaje,
+                    TipoNotificacion.EVENTO,
+                    evento.getId(),
+                    solicitante);
+        }
+
         return eventoMapper.toResponse(evento, true);
     }
 
@@ -234,6 +262,17 @@ public class EventoService {
         evento.setEstado(EstadoEvento.CANCELADO);
         evento.setMotivoCancelacion(request != null ? request.getMotivoCancelacion() : null);
         evento.setFechaActualizacion(LocalDateTime.now());
+
+        // Notifica a todos los invitados, independientemente de su estado de asistencia.
+        String mensaje = mensajeCancelacion(solicitante, evento);
+        for (EventoUsuario inv : evento.getInvitados()) {
+            notificacionService.crear(
+                    inv.getUsuario(),
+                    mensaje,
+                    TipoNotificacion.EVENTO,
+                    evento.getId(),
+                    solicitante);
+        }
 
         return eventoMapper.toResponse(evento, esCreador(evento, solicitante));
     }
@@ -271,6 +310,13 @@ public class EventoService {
                 .build();
         evento.getInvitados().add(relacion);
 
+        notificacionService.crear(
+                invitado,
+                mensajeInvitacion(solicitante, evento),
+                TipoNotificacion.EVENTO,
+                evento.getId(),
+                solicitante);
+
         return eventoMapper.toResponse(evento, true);
     }
 
@@ -286,10 +332,19 @@ public class EventoService {
             throw new IllegalOperationException("Solo se pueden modificar invitados de eventos en estado ACTIVO");
         }
 
-        boolean removido = evento.getInvitados().removeIf(inv -> inv.getUsuario().getId().equals(usuarioId));
-        if (!removido) {
-            throw new ResourceNotFoundException("EventoUsuario", "usuarioId", usuarioId);
-        }
+        EventoUsuario aRemover = evento.getInvitados().stream()
+                .filter(inv -> inv.getUsuario().getId().equals(usuarioId))
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("EventoUsuario", "usuarioId", usuarioId));
+        Usuario usuarioRemovido = aRemover.getUsuario();
+        evento.getInvitados().remove(aRemover);
+
+        notificacionService.crear(
+                usuarioRemovido,
+                mensajeRemocion(solicitante, evento),
+                TipoNotificacion.EVENTO,
+                evento.getId(),
+                solicitante);
 
         return eventoMapper.toResponse(evento, true);
     }
@@ -349,6 +404,20 @@ public class EventoService {
 
         evento.setEstado(EstadoEvento.FINALIZADO);
         evento.setFechaActualizacion(ahora);
+
+        // Notifica a los invitados que confirmaron asistencia. El creador no esta
+        // en la coleccion de invitados; no se autonotifica.
+        String mensaje = mensajeResultado(autor, evento);
+        for (EventoUsuario inv : evento.getInvitados()) {
+            if (inv.getEstadoAsistencia() == EstadoAsistencia.CONFIRMADO) {
+                notificacionService.crear(
+                        inv.getUsuario(),
+                        mensaje,
+                        TipoNotificacion.EVENTO,
+                        evento.getId(),
+                        autor);
+            }
+        }
 
         return ResultadoEventoResponse.builder()
                 .eventoId(evento.getId())
@@ -546,5 +615,41 @@ public class EventoService {
         String correo = SecurityContextHolder.getContext().getAuthentication().getName();
         return usuarioRepository.findByCorreo(correo)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario", "correo", correo));
+    }
+
+    // ---------- Builders de mensaje (notificaciones) ----------
+
+    private String nombreCompleto(Usuario u) {
+        return u.getNombre() + " " + u.getApellido();
+    }
+
+    private String mensajeInvitacion(Usuario creador, Evento evento) {
+        return nombreCompleto(creador) + " te invito al evento \"" + evento.getTitulo() + "\"";
+    }
+
+    private String mensajeReprogramacion(Usuario creador, Evento evento) {
+        return nombreCompleto(creador) + " cambio la fecha del evento \"" + evento.getTitulo()
+                + "\". Por favor reconfirma tu asistencia.";
+    }
+
+    private String mensajeEdicion(Usuario creador, Evento evento) {
+        return nombreCompleto(creador) + " actualizo el evento \"" + evento.getTitulo() + "\"";
+    }
+
+    private String mensajeCancelacion(Usuario creador, Evento evento) {
+        String base = nombreCompleto(creador) + " cancelo el evento \"" + evento.getTitulo() + "\"";
+        String motivo = evento.getMotivoCancelacion();
+        if (motivo != null && !motivo.isBlank()) {
+            base += " - Motivo: " + motivo.trim();
+        }
+        return base;
+    }
+
+    private String mensajeRemocion(Usuario creador, Evento evento) {
+        return nombreCompleto(creador) + " te retiro del evento \"" + evento.getTitulo() + "\"";
+    }
+
+    private String mensajeResultado(Usuario creador, Evento evento) {
+        return nombreCompleto(creador) + " registro el resultado del evento \"" + evento.getTitulo() + "\"";
     }
 }
