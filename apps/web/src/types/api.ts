@@ -394,3 +394,141 @@ export interface ActividadEntradaResponse {
   titulo: string | null
   descripcion: string
 }
+
+// --- Coordinación / Eventos (Fase 4) ---
+
+export type TipoEvento = 'SOLICITUD_APOYO_SAANEE' | 'REUNION_PADRES'
+export type EstadoEvento = 'ACTIVO' | 'CANCELADO' | 'FINALIZADO'
+export type EstadoAsistencia = 'PENDIENTE' | 'CONFIRMADO' | 'RECHAZADO'
+export type ModalidadEvento = 'PRESENCIAL' | 'VIRTUAL'
+export type TipoNotificacion = 'EVENTO' | 'ENTRADA_EXPD' | 'OTRO'
+
+export interface AlumnoBasicoResponse {
+  id: number
+  nombre: string
+  apellido: string
+  grado: string
+  seccion: string
+}
+
+export interface EventoUsuarioResponse {
+  id: number
+  usuario: UsuarioBitacoraResponse
+  estadoAsistencia: EstadoAsistencia
+  fechaRespuesta: string | null   // LocalDateTime ISO
+  // Presente solo cuando el solicitante es el creador del evento; el resto
+  // de invitados lo recibe en null por privacidad.
+  motivoRechazo: string | null
+}
+
+export interface EventoResponse {
+  id: number
+  titulo: string
+  descripcion: string | null
+  fechaInicio: string             // LocalDateTime ISO
+  fechaFin: string                // LocalDateTime ISO
+  tipoEvento: TipoEvento
+  modalidad: ModalidadEvento
+  ubicacion: string | null
+  estado: EstadoEvento
+  motivoCancelacion: string | null
+  alumno: AlumnoBasicoResponse
+  usuarioCreador: UsuarioBitacoraResponse
+  fechaCreacion: string
+  fechaActualizacion: string | null
+  invitados: EventoUsuarioResponse[]
+}
+
+export interface EventoCreateRequest {
+  titulo: string
+  descripcion?: string | null
+  fechaInicio: string             // LocalDateTime ISO
+  fechaFin: string                // LocalDateTime ISO
+  tipoEvento: TipoEvento
+  modalidad: ModalidadEvento
+  ubicacion?: string | null
+  alumnoId: number
+  invitadosUsuarioIds: number[]   // El backend exige >= 1 despues de excluir al creador.
+}
+
+export interface EventoUpdateRequest {
+  titulo: string
+  descripcion?: string | null
+  fechaInicio: string
+  fechaFin: string
+  modalidad: ModalidadEvento
+  ubicacion?: string | null
+}
+
+export interface CancelarEventoRequest {
+  motivoCancelacion?: string | null
+}
+
+export interface ResponderAsistenciaRequest {
+  estadoAsistencia: 'CONFIRMADO' | 'RECHAZADO'
+  motivoRechazo?: string | null
+}
+
+export interface InvitarUsuarioRequest {
+  usuarioId: number
+}
+
+export interface RegistrarResultadoRequest {
+  titulo?: string | null
+  descripcion: string
+}
+
+export interface ResultadoEventoResponse {
+  eventoId: number
+  entradaId: number
+  titulo: string | null
+  descripcion: string
+  fecha: string                   // LocalDateTime ISO
+  autor: UsuarioBitacoraResponse
+  archivos: EntradaArchivoResponse[]
+}
+
+export interface EventoArchivoResponse {
+  id: number
+  eventoId: number
+  archivo: ArchivoAdjuntoResponse
+  tipo: string | null
+  descripcion: string | null
+  usuarioSubido: UsuarioSimpleResponse
+}
+
+export interface EventoArchivoCreateRequest {
+  tipo?: string | null
+  descripcion?: string | null
+}
+
+export interface EventosListarFiltros {
+  alumnoId?: number
+  tipoEvento?: TipoEvento
+  estado?: EstadoEvento
+  desde?: string                  // LocalDateTime ISO
+  hasta?: string
+}
+
+// --- Notificaciones (Fase 4) ---
+
+export interface NotificacionResponse {
+  id: number
+  mensaje: string
+  referenciaTipo: TipoNotificacion
+  referenciaId: number | null
+  usuarioCreador: UsuarioBitacoraResponse | null
+  fechaCreacion: string
+  fechaLectura: string | null
+}
+
+// --- Contactos (Fase 4) ---
+
+export interface ContactoResponse {
+  usuarioId: number
+  rol: TipoRol
+  nombre: string
+  apellido: string
+  correo: string
+  telefono: string | null
+}
