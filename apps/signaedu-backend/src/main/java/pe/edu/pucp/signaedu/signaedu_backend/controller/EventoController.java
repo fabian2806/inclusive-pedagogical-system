@@ -4,15 +4,19 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import pe.edu.pucp.signaedu.signaedu_backend.dto.request.CancelarEventoRequest;
 import pe.edu.pucp.signaedu.signaedu_backend.dto.request.EventoCreateRequest;
 import pe.edu.pucp.signaedu.signaedu_backend.dto.request.EventoUpdateRequest;
 import pe.edu.pucp.signaedu.signaedu_backend.dto.request.InvitarUsuarioRequest;
+import pe.edu.pucp.signaedu.signaedu_backend.dto.request.RegistrarResultadoRequest;
 import pe.edu.pucp.signaedu.signaedu_backend.dto.request.ResponderAsistenciaRequest;
 import pe.edu.pucp.signaedu.signaedu_backend.dto.response.EventoResponse;
+import pe.edu.pucp.signaedu.signaedu_backend.dto.response.ResultadoEventoResponse;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.EstadoEvento;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.TipoEvento;
 import pe.edu.pucp.signaedu.signaedu_backend.service.EventoService;
@@ -87,5 +91,16 @@ public class EventoController {
     public ResponseEntity<EventoResponse> removerInvitado(@PathVariable Long id,
                                                           @PathVariable Long usuarioId) {
         return ResponseEntity.ok(eventoService.removerInvitado(id, usuarioId));
+    }
+
+    @PostMapping(value = "/{id}/resultado", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAuthority('EVENTO_RESULTADO_ESCRIBIR')")
+    public ResponseEntity<ResultadoEventoResponse> registrarResultado(
+            @PathVariable Long id,
+            @RequestPart("data") @Valid RegistrarResultadoRequest request,
+            @RequestPart(value = "archivos", required = false) List<MultipartFile> archivos) {
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(eventoService.registrarResultado(id, request, archivos));
     }
 }

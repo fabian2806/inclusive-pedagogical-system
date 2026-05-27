@@ -1,37 +1,60 @@
 package pe.edu.pucp.signaedu.signaedu_backend.service;
 
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import pe.edu.pucp.signaedu.signaedu_backend.dto.request.CancelarEventoRequest;
 import pe.edu.pucp.signaedu.signaedu_backend.dto.request.EventoCreateRequest;
 import pe.edu.pucp.signaedu.signaedu_backend.dto.request.EventoUpdateRequest;
 import pe.edu.pucp.signaedu.signaedu_backend.dto.request.InvitarUsuarioRequest;
+import pe.edu.pucp.signaedu.signaedu_backend.dto.request.RegistrarResultadoRequest;
 import pe.edu.pucp.signaedu.signaedu_backend.dto.response.EventoResponse;
+import pe.edu.pucp.signaedu.signaedu_backend.dto.response.ResultadoEventoResponse;
 import pe.edu.pucp.signaedu.signaedu_backend.exception.IllegalOperationException;
 import pe.edu.pucp.signaedu.signaedu_backend.exception.ResourceNotFoundException;
+import pe.edu.pucp.signaedu.signaedu_backend.mapper.EntradaArchivoMapper;
 import pe.edu.pucp.signaedu.signaedu_backend.mapper.EventoMapper;
+import pe.edu.pucp.signaedu.signaedu_backend.mapper.UsuarioMapper;
 import pe.edu.pucp.signaedu.signaedu_backend.model.Alumno;
+import pe.edu.pucp.signaedu.signaedu_backend.model.ArchivoAdjunto;
+import pe.edu.pucp.signaedu.signaedu_backend.model.EntradaArchivo;
+import pe.edu.pucp.signaedu.signaedu_backend.model.EntradaExpediente;
 import pe.edu.pucp.signaedu.signaedu_backend.model.Evento;
 import pe.edu.pucp.signaedu.signaedu_backend.model.EventoUsuario;
+import pe.edu.pucp.signaedu.signaedu_backend.model.Expediente;
 import pe.edu.pucp.signaedu.signaedu_backend.model.Usuario;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.EstadoAsistencia;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.EstadoEvento;
+import pe.edu.pucp.signaedu.signaedu_backend.model.enums.EstadoExpediente;
+import pe.edu.pucp.signaedu.signaedu_backend.model.enums.TipoEntrada;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.TipoEvento;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.TipoRol;
 import pe.edu.pucp.signaedu.signaedu_backend.repository.AlumnoRepository;
+import pe.edu.pucp.signaedu.signaedu_backend.repository.ArchivoAdjuntoRepository;
+import pe.edu.pucp.signaedu.signaedu_backend.repository.EntradaArchivoRepository;
+import pe.edu.pucp.signaedu.signaedu_backend.repository.EntradaExpedienteRepository;
 import pe.edu.pucp.signaedu.signaedu_backend.repository.EventoRepository;
+import pe.edu.pucp.signaedu.signaedu_backend.repository.ExpedienteRepository;
 import pe.edu.pucp.signaedu.signaedu_backend.repository.UsuarioRepository;
 import pe.edu.pucp.signaedu.signaedu_backend.repository.specs.EventoSpecs;
+import pe.edu.pucp.signaedu.signaedu_backend.service.storage.ArchivoStorage;
+import pe.edu.pucp.signaedu.signaedu_backend.service.storage.StorageException;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -41,6 +64,32 @@ public class EventoService {
     private final AlumnoRepository alumnoRepository;
     private final UsuarioRepository usuarioRepository;
     private final EventoMapper eventoMapper;
+
+    // Dependencias para registrar el resultado de un evento.
+    private final EntradaExpedienteRepository entradaRepository;
+    private final EntradaArchivoRepository entradaArchivoRepository;
+    private final ArchivoAdjuntoRepository archivoRepository;
+    private final ExpedienteRepository expedienteRepository;
+    private final ConfiguracionService configuracionService;
+    private final ArchivoStorage archivoStorage;
+    private final EntradaArchivoMapper entradaArchivoMapper;
+    private final UsuarioMapper usuarioMapper;
+
+    @Value("${storage.max-bytes:10485760}")
+    private long maxBytes;
+
+    @Value("${storage.allowed-mime-types}")
+    private String allowedMimesCsv;
+
+    private Set<String> mimesPermitidos;
+
+    @PostConstruct
+    void inicializarMimesPermitidos() {
+        mimesPermitidos = Arrays.stream(allowedMimesCsv.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toUnmodifiableSet());
+    }
 
     // ---------- Crear ----------
 
@@ -243,6 +292,175 @@ public class EventoService {
         }
 
         return eventoMapper.toResponse(evento, true);
+    }
+
+    // ---------- Registrar resultado ----------
+
+    /**
+     * Cierra un evento registrando su resultado como una EntradaExpediente
+     * de tipo EVENTO_AGENDA vinculada al evento (opcion b del plan de Fase 4):
+     * el resultado vive en la bitacora del expediente del alumno y se puede
+     * navegar desde el detalle del evento via evento_id.
+     *
+     * Patron espejo de DocumentoExpedienteService.subir: crea la entrada,
+     * persiste los archivos con placeholder + key, escribe en storage como
+     * ultimo paso para que cualquier fallo dispare rollback transaccional.
+     *
+     * Bypass intencional de BitacoraService: EVENTO_AGENDA esta en
+     * TIPOS_DIFERIDOS para evitar creacion directa via POST /alumnos/{id}/bitacora;
+     * aqui se invoca desde el service de eventos como side-effect del
+     * cierre del evento, no como entrada manual.
+     */
+    @Transactional
+    public ResultadoEventoResponse registrarResultado(Long eventoId,
+                                                      RegistrarResultadoRequest request,
+                                                      List<MultipartFile> archivos) {
+        Usuario autor = obtenerUsuarioAutenticado();
+        Evento evento = cargarEvento(eventoId);
+
+        if (!esCreador(evento, autor)) {
+            throw new AccessDeniedException("Solo el creador del evento puede registrar su resultado");
+        }
+        if (evento.getEstado() != EstadoEvento.ACTIVO) {
+            throw new IllegalOperationException(
+                    "Solo se puede registrar resultado en eventos en estado ACTIVO");
+        }
+        if (entradaRepository.existsByEvento_IdAndTipoEntrada(eventoId, TipoEntrada.EVENTO_AGENDA)) {
+            throw new IllegalOperationException(
+                    "El evento ya tiene un resultado registrado");
+        }
+
+        Expediente expediente = obtenerExpedienteVigenteOLanzar(evento.getAlumno().getId());
+        validarArchivos(archivos);
+
+        LocalDateTime ahora = LocalDateTime.now();
+
+        EntradaExpediente entrada = entradaRepository.save(EntradaExpediente.builder()
+                .expediente(expediente)
+                .tipoEntrada(TipoEntrada.EVENTO_AGENDA)
+                .usuario(autor)
+                .fecha(ahora)
+                .titulo(request.getTitulo())
+                .descripcion(request.getDescripcion())
+                .evento(evento)
+                .build());
+
+        List<EntradaArchivo> entradaArchivos = persistirArchivos(archivos, entrada, autor, ahora);
+
+        evento.setEstado(EstadoEvento.FINALIZADO);
+        evento.setFechaActualizacion(ahora);
+
+        return ResultadoEventoResponse.builder()
+                .eventoId(evento.getId())
+                .entradaId(entrada.getId())
+                .titulo(entrada.getTitulo())
+                .descripcion(entrada.getDescripcion())
+                .fecha(entrada.getFecha())
+                .autor(usuarioMapper.toBitacoraResponse(autor))
+                .archivos(entradaArchivos.stream()
+                        .map(entradaArchivoMapper::toResponse)
+                        .toList())
+                .build();
+    }
+
+    // ---------- Helpers de resultado ----------
+
+    private Expediente obtenerExpedienteVigenteOLanzar(Long alumnoId) {
+        String periodo = configuracionService.obtenerValorPeriodo();
+        return expedienteRepository
+                .findByAlumnoIdAndPeriodoLectivoAndEstado(alumnoId, periodo, EstadoExpediente.ACTIVO)
+                .orElseThrow(() -> new IllegalOperationException(
+                        "El alumno del evento no tiene un expediente activo en el periodo vigente"));
+    }
+
+    private void validarArchivos(List<MultipartFile> archivos) {
+        if (archivos == null || archivos.isEmpty()) {
+            return;
+        }
+        for (MultipartFile archivo : archivos) {
+            validarArchivo(archivo);
+        }
+    }
+
+    private void validarArchivo(MultipartFile archivo) {
+        if (archivo == null || archivo.isEmpty()) {
+            throw new IllegalOperationException("El archivo es obligatorio y no puede estar vacio");
+        }
+        if (archivo.getSize() > maxBytes) {
+            throw new IllegalOperationException(
+                    "El archivo supera el tamano maximo permitido de " + maxBytes + " bytes");
+        }
+        String mime = archivo.getContentType();
+        if (mime == null || !mimesPermitidos.contains(mime)) {
+            throw new IllegalOperationException(
+                    "Tipo MIME no permitido: " + (mime == null ? "(desconocido)" : mime));
+        }
+    }
+
+    private List<EntradaArchivo> persistirArchivos(List<MultipartFile> archivos,
+                                                   EntradaExpediente entrada,
+                                                   Usuario autor,
+                                                   LocalDateTime ahora) {
+        if (archivos == null || archivos.isEmpty()) {
+            return List.of();
+        }
+        return archivos.stream()
+                .map(archivo -> persistirArchivo(archivo, entrada, autor, ahora))
+                .toList();
+    }
+
+    private EntradaArchivo persistirArchivo(MultipartFile archivo,
+                                            EntradaExpediente entrada,
+                                            Usuario autor,
+                                            LocalDateTime ahora) {
+        ArchivoAdjunto archivoEntity = persistirArchivoConPlaceholder(archivo, ahora);
+        String key = construirKey(archivoEntity.getId(), archivo.getOriginalFilename());
+        archivoEntity.setRutaAlmacenamiento(key);
+
+        EntradaArchivo entradaArchivo = entradaArchivoRepository.save(EntradaArchivo.builder()
+                .entrada(entrada)
+                .archivo(archivoEntity)
+                .usuarioSubido(autor)
+                .fechaSubida(ahora)
+                .build());
+
+        // Storage como ultimo paso: si falla, rollback transaccional + nada en disco.
+        guardarArchivoEnStorage(archivo, key);
+        return entradaArchivo;
+    }
+
+    private ArchivoAdjunto persistirArchivoConPlaceholder(MultipartFile archivo, LocalDateTime ahora) {
+        ArchivoAdjunto entity = ArchivoAdjunto.builder()
+                .nombreOriginal(archivo.getOriginalFilename() != null
+                        ? archivo.getOriginalFilename()
+                        : "sin-nombre")
+                .mimeType(archivo.getContentType() != null
+                        ? archivo.getContentType()
+                        : "application/octet-stream")
+                .tamano(archivo.getSize())
+                .rutaAlmacenamiento("PENDIENTE-" + UUID.randomUUID())
+                .fechaSubida(ahora)
+                .build();
+        return archivoRepository.save(entity);
+    }
+
+    private String construirKey(Long archivoId, String filenameOriginal) {
+        String ext = "";
+        if (filenameOriginal != null) {
+            int dot = filenameOriginal.lastIndexOf('.');
+            if (dot >= 0 && dot < filenameOriginal.length() - 1) {
+                ext = filenameOriginal.substring(dot);
+            }
+        }
+        return "expedientes/" + archivoId + ext;
+    }
+
+    private void guardarArchivoEnStorage(MultipartFile archivo, String key) {
+        try {
+            archivoStorage.guardar(key, archivo.getInputStream(), archivo.getSize());
+        } catch (IOException e) {
+            throw new StorageException("Error al leer archivo recibido para guardar", e);
+        }
     }
 
     // ---------- Helpers ----------

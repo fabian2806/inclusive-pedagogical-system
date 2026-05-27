@@ -6,13 +6,19 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import pe.edu.pucp.signaedu.signaedu_backend.model.EntradaExpediente;
+import pe.edu.pucp.signaedu.signaedu_backend.model.enums.TipoEntrada;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface EntradaExpedienteRepository
         extends JpaRepository<EntradaExpediente, Long>,
                 JpaSpecificationExecutor<EntradaExpediente> {
+
+    boolean existsByEvento_IdAndTipoEntrada(Long eventoId, TipoEntrada tipo);
+
+    Optional<EntradaExpediente> findFirstByEvento_IdAndTipoEntrada(Long eventoId, TipoEntrada tipo);
 
     @Query("""
             SELECT COUNT(e) FROM EntradaExpediente e
