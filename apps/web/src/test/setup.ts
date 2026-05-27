@@ -1,5 +1,4 @@
 import '@testing-library/jest-dom/vitest'
-import { vi } from 'vitest'
 
 // Polyfill para APIs del navegador no disponibles en jsdom
 window.ResizeObserver = class ResizeObserver {
@@ -9,16 +8,20 @@ window.ResizeObserver = class ResizeObserver {
 }
 
 // matchMedia es usado por hooks responsive (use-mobile) y componentes shadcn.
+// Mock minimo sin depender de `vi` para mantener setupFiles libre de imports
+// desde 'vitest' (vitest 4 marca esto como posible causa de "failed to find
+// the runner" si la dependencia se procesa antes de inicializar el runner).
+const noop = () => {}
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
-  value: vi.fn().mockImplementation((query: string) => ({
+  value: (query: string) => ({
     matches: false,
     media: query,
     onchange: null,
-    addListener: vi.fn(),
-    removeListener: vi.fn(),
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    dispatchEvent: vi.fn(),
-  })),
+    addListener: noop,
+    removeListener: noop,
+    addEventListener: noop,
+    removeEventListener: noop,
+    dispatchEvent: () => false,
+  }),
 })
