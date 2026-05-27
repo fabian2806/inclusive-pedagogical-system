@@ -143,15 +143,21 @@ public class EventoService {
     }
 
     private void agregarInvitadosIniciales(Evento evento, List<Long> invitadosIds, Long creadorId) {
-        if (invitadosIds == null || invitadosIds.isEmpty()) {
-            return;
-        }
-        Set<Long> idsUnicos = new HashSet<>(invitadosIds);
-        for (Long usuarioId : idsUnicos) {
-            if (usuarioId.equals(creadorId)) {
-                // El creador no se agrega como invitado (asistencia implicita).
-                continue;
+        // Calcula el set efectivo: deduplica y excluye al creador
+        // (asistencia implicita) antes de validar.
+        Set<Long> idsEfectivos = new HashSet<>();
+        if (invitadosIds != null) {
+            for (Long id : invitadosIds) {
+                if (id != null && !id.equals(creadorId)) {
+                    idsEfectivos.add(id);
+                }
             }
+        }
+        if (idsEfectivos.isEmpty()) {
+            throw new IllegalOperationException(
+                    "El evento debe tener al menos un invitado distinto del creador");
+        }
+        for (Long usuarioId : idsEfectivos) {
             Usuario invitado = usuarioRepository.findById(usuarioId)
                     .orElseThrow(() -> new ResourceNotFoundException("Usuario", "id", usuarioId));
             EventoUsuario relacion = EventoUsuario.builder()
@@ -405,11 +411,14 @@ public class EventoService {
         evento.setEstado(EstadoEvento.FINALIZADO);
         evento.setFechaActualizacion(ahora);
 
-        // Notifica a los invitados que confirmaron asistencia. El creador no esta
-        // en la coleccion de invitados; no se autonotifica.
+        // Notifica a los invitados que no rechazaron la invitacion (CONFIRMADO
+        // o PENDIENTE). Quienes rechazaron explicitamente no reciben el ping;
+        // si quieren consultar el resultado, sigue accesible via la bitacora
+        // del expediente. El creador no esta en la coleccion de invitados;
+        // no se autonotifica.
         String mensaje = mensajeResultado(autor, evento);
         for (EventoUsuario inv : evento.getInvitados()) {
-            if (inv.getEstadoAsistencia() == EstadoAsistencia.CONFIRMADO) {
+            if (inv.getEstadoAsistencia() != EstadoAsistencia.RECHAZADO) {
                 notificacionService.crear(
                         inv.getUsuario(),
                         mensaje,
