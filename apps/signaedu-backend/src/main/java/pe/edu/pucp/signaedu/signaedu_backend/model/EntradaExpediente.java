@@ -65,4 +65,8 @@ public class EntradaExpediente {
 
     @Column(name = "resultado_logrado")
     private Boolean resultadoLogrado;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "evento_id")
+    private Evento evento;
 }
