@@ -24,13 +24,12 @@ function renderSidebar(rol: UserRole) {
 
 describe('AppSidebar', () => {
   describe('rol admin', () => {
-    it('muestra Inicio, Usuarios, Estudiantes, Tipos Documento, Eventos, Configuración', () => {
+    it('muestra Inicio, Usuarios, Estudiantes, Tipos Documento, Configuración', () => {
       renderSidebar('admin')
       expect(screen.getByText('Inicio')).toBeInTheDocument()
       expect(screen.getByText('Usuarios')).toBeInTheDocument()
       expect(screen.getByText('Estudiantes')).toBeInTheDocument()
       expect(screen.getByText('Tipos Documento')).toBeInTheDocument()
-      expect(screen.getByText('Eventos')).toBeInTheDocument()
       expect(screen.getByText('Configuración')).toBeInTheDocument()
     })
 
@@ -39,11 +38,9 @@ describe('AppSidebar', () => {
       expect(screen.queryByText('Reportes')).not.toBeInTheDocument()
     })
 
-    it('Eventos está deshabilitado y muestra badge Próximamente', () => {
+    it('no muestra Eventos (fuera del alcance de admin en Fase 4)', () => {
       renderSidebar('admin')
-      const eventos = screen.getByText('Eventos').closest('[aria-disabled="true"]')
-      expect(eventos).not.toBeNull()
-      expect(screen.getByText('Próximamente')).toBeInTheDocument()
+      expect(screen.queryByText('Eventos')).not.toBeInTheDocument()
     })
   })
 
@@ -54,6 +51,12 @@ describe('AppSidebar', () => {
       expect(screen.getByText('Estudiantes')).toBeInTheDocument()
       expect(screen.getByText('Indicadores')).toBeInTheDocument()
       expect(screen.getByText('Eventos')).toBeInTheDocument()
+    })
+
+    it('Eventos enlaza a /dashboard/eventos', () => {
+      renderSidebar('docente')
+      const link = screen.getByText('Eventos').closest('a')
+      expect(link).toHaveAttribute('href', '/dashboard/eventos')
     })
 
     it('no muestra Informes (removido del v0)', () => {

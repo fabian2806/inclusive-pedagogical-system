@@ -13,6 +13,7 @@ import Students from '@/pages/Students'
 import StudentProfile from '@/pages/StudentProfile'
 import StudentRecord from './pages/StudentRecord'
 import Indicators from './pages/Indicators'
+import Events from '@/pages/Events'
 
 function App() {
   return (
@@ -36,6 +37,15 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['docente']}>
                   <Indicators />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path='eventos'
+              element={
+                <ProtectedRoute allowedRoles={['docente', 'padre', 'saanee']}>
+                  <Events />
                 </ProtectedRoute>
               }
             />

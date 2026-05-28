@@ -25,24 +25,23 @@ const menuConfig: Record<UserRole, MenuItem[]> = {
         { title: "Usuarios", url: "/dashboard/admin/usuarios", icon: UserCog },
         { title: "Estudiantes", url: "/dashboard/admin/estudiantes", icon: Users },
         { title: "Tipos Documento", url: "/dashboard/admin/tipos-documento", icon: FolderCog },
-        { title: "Eventos", icon: Calendar, disabled: true, badge: "Próximamente" },
         { title: "Configuración", url: "/dashboard/admin/configuracion", icon: Settings },
     ],
     docente: [
         { title: "Inicio", url: "/dashboard", icon: LayoutDashboard },
         { title: "Estudiantes", url: "/dashboard/estudiantes", icon: Users },
         { title: "Indicadores", url: "/dashboard/indicadores", icon: Target },
-        { title: "Eventos", icon: Calendar, disabled: true, badge: "Próximamente" },
+        { title: "Eventos", url: "/dashboard/eventos", icon: Calendar },
     ],
     padre: [
         { title: "Inicio", url: "/dashboard", icon: LayoutDashboard },
         { title: "Mis Hijos", url: "/dashboard/estudiantes", icon: Users },
-        { title: "Eventos", icon: Calendar, disabled: true, badge: "Próximamente" },
+        { title: "Eventos", url: "/dashboard/eventos", icon: Calendar },
     ],
     saanee: [
         { title: "Inicio", url: "/dashboard", icon: LayoutDashboard },
         { title: "Estudiantes", url: "/dashboard/estudiantes", icon: Users },
-        { title: "Eventos", icon: Calendar, disabled: true, badge: "Próximamente" },
+        { title: "Eventos", url: "/dashboard/eventos", icon: Calendar },
     ],
 }
 
