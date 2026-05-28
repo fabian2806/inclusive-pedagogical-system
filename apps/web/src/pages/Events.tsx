@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { NuevoEventoDialog } from '@/components/events/NuevoEventoDialog'
+import { ResponderAsistenciaPanel } from '@/components/events/ResponderAsistenciaPanel'
 import { useApiQuery } from '@/hooks/useApiQuery'
 import { useAuth } from '@/hooks/useAuth'
 import { eventosService } from '@/lib/api'
@@ -141,20 +142,30 @@ function inicioDeSemana(referencia: Date, offsetSemanas: number): Date {
   return d
 }
 
-// ─── Modal de detalle (read-only en 4d.2) ─────────────────────────────────────
-// Las acciones (responder, editar, cancelar, registrar resultado) se conectan
-// en los sub-bloques siguientes; aqui solo se muestra la info real.
+// ─── Modal de detalle ─────────────────────────────────────────────────────────
+// 4d.2: info completa + lista de invitados, read-only.
+// 4d.4: agrega el panel de respuesta de asistencia para el usuario invitado.
+// 4d.5-4d.6: agregaran las acciones del creador (cancelar / editar /
+// registrar resultado).
 
 function EventoDetailModal({
   evento,
+  currentUserId,
   onClose,
+  onResponded,
 }: {
   evento: EventoResponse
+  currentUserId: number | undefined
   onClose: () => void
+  onResponded: () => void
 }) {
   const tipo = TIPO_EVENTO_CONFIG[evento.tipoEvento]
   const estadoStyle = getEstadoEventoStyle(evento.estado)
   const esVirtual = evento.modalidad === 'VIRTUAL'
+  const miInvitacion =
+    currentUserId != null
+      ? evento.invitados.find((inv) => inv.usuario.id === currentUserId)
+      : undefined
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -247,12 +258,27 @@ function EventoDetailModal({
             ) : (
               <div className="space-y-2">
                 {evento.invitados.map((inv) => (
-                  <InvitadoRow key={inv.id} invitado={inv} />
+                  <InvitadoRow
+                    key={inv.id}
+                    invitado={inv}
+                    destacar={miInvitacion?.id === inv.id}
+                  />
                 ))}
               </div>
             )}
           </div>
         </div>
+
+        {/* Acciones del invitado: responder / cambiar asistencia */}
+        {miInvitacion && (
+          <div className="px-6 py-4 border-t border-[#E5E7EB] bg-[#FAFBFC]">
+            <ResponderAsistenciaPanel
+              evento={evento}
+              invitado={miInvitacion}
+              onResponded={onResponded}
+            />
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   )
@@ -267,15 +293,30 @@ function InfoBox({ label, valor }: { label: string; valor: string }) {
   )
 }
 
-function InvitadoRow({ invitado }: { invitado: EventoUsuarioResponse }) {
+function InvitadoRow({
+  invitado,
+  destacar = false,
+}: {
+  invitado: EventoUsuarioResponse
+  destacar?: boolean
+}) {
   const styleAsist = getEstadoAsistenciaStyle(invitado.estadoAsistencia)
   return (
-    <div className="flex items-center gap-3 p-3 rounded-lg border border-[#E5E7EB] bg-white">
+    <div
+      className={`flex items-center gap-3 p-3 rounded-lg border bg-white ${
+        destacar ? 'border-[#BFDBFE] ring-1 ring-[#BFDBFE]' : 'border-[#E5E7EB]'
+      }`}
+    >
       <Avatar iniciales={iniciales(invitado.usuario.nombre, invitado.usuario.apellido)} size="sm" />
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-[#374151]">
-          {invitado.usuario.nombre} {invitado.usuario.apellido}
-        </p>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <p className="text-sm font-medium text-[#374151]">
+            {invitado.usuario.nombre} {invitado.usuario.apellido}
+          </p>
+          {destacar && (
+            <span className="text-[10px] text-[#2563EB] font-medium">(tú)</span>
+          )}
+        </div>
         <p className="text-xs text-[#9CA3AF]">{invitado.usuario.rol}</p>
         {invitado.fechaRespuesta && invitado.estadoAsistencia !== 'PENDIENTE' && (
           <p className="text-[11px] text-[#6B7280] mt-0.5">
@@ -373,10 +414,10 @@ export default function Events() {
     })
   }, [eventos, tipoFiltro, vista, hoy])
 
-  // Calendario semanal: dias L-V con eventos del rango.
+  // Calendario semanal: dias L-D con eventos del rango.
   const inicioSemana = useMemo(() => inicioDeSemana(new Date(), currentWeek), [currentWeek])
   const diasSemana = useMemo(() => {
-    return Array.from({ length: 5 }, (_, i) => {
+    return Array.from({ length: 7 }, (_, i) => {
       const d = new Date(inicioSemana)
       d.setDate(inicioSemana.getDate() + i)
       return d
@@ -459,7 +500,7 @@ export default function Events() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-5 gap-2 mb-4">
+              <div className="grid grid-cols-7 gap-2 mb-4">
                 {diasSemana.map((dia, idx) => {
                   const esHoy = mismaFecha(dia, new Date())
                   return (
@@ -476,7 +517,7 @@ export default function Events() {
                   )
                 })}
               </div>
-              <div className="grid grid-cols-5 gap-2 min-h-40">
+              <div className="grid grid-cols-7 gap-2 min-h-40">
                 {diasSemana.map((dia, idx) => {
                   const eventosDia = eventosSemana
                     .filter((ev) => mismaFecha(new Date(ev.fechaInicio), dia))
@@ -588,7 +629,15 @@ export default function Events() {
       )}
 
       {selectedEvento && (
-        <EventoDetailModal evento={selectedEvento} onClose={() => setSelectedEvento(null)} />
+        <EventoDetailModal
+          evento={selectedEvento}
+          currentUserId={user?.id}
+          onClose={() => setSelectedEvento(null)}
+          onResponded={() => {
+            refetch()
+            setSelectedEvento(null)
+          }}
+        />
       )}
 
       {puedeCrear && (
