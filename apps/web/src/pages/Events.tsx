@@ -14,6 +14,8 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { CancelarEventoDialog } from '@/components/events/CancelarEventoDialog'
+import { EditarEventoDialog } from '@/components/events/EditarEventoDialog'
 import { NuevoEventoDialog } from '@/components/events/NuevoEventoDialog'
 import { ResponderAsistenciaPanel } from '@/components/events/ResponderAsistenciaPanel'
 import { useApiQuery } from '@/hooks/useApiQuery'
@@ -144,20 +146,23 @@ function inicioDeSemana(referencia: Date, offsetSemanas: number): Date {
 
 // ─── Modal de detalle ─────────────────────────────────────────────────────────
 // 4d.2: info completa + lista de invitados, read-only.
-// 4d.4: agrega el panel de respuesta de asistencia para el usuario invitado.
-// 4d.5-4d.6: agregaran las acciones del creador (cancelar / editar /
-// registrar resultado).
+// 4d.4: panel de respuesta de asistencia para el usuario invitado.
+// 4d.5: acciones del creador (cancelar + editar).
+// 4d.6: agregara registrar resultado.
 
 function EventoDetailModal({
   evento,
   currentUserId,
   onClose,
-  onResponded,
+  onChanged,
 }: {
   evento: EventoResponse
   currentUserId: number | undefined
   onClose: () => void
-  onResponded: () => void
+  /** Se invoca cuando hay un cambio que requiere refrescar la lista y
+   *  cerrar el modal: responder asistencia, editar, cancelar o registrar
+   *  resultado. Centraliza el callback para evitar 4 props distintos. */
+  onChanged: () => void
 }) {
   const tipo = TIPO_EVENTO_CONFIG[evento.tipoEvento]
   const estadoStyle = getEstadoEventoStyle(evento.estado)
@@ -166,6 +171,11 @@ function EventoDetailModal({
     currentUserId != null
       ? evento.invitados.find((inv) => inv.usuario.id === currentUserId)
       : undefined
+  const esCreador = currentUserId != null && evento.usuarioCreador.id === currentUserId
+  const eventoActivo = evento.estado === 'ACTIVO'
+
+  const [editOpen, setEditOpen] = useState(false)
+  const [cancelOpen, setCancelOpen] = useState(false)
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -275,11 +285,56 @@ function EventoDetailModal({
             <ResponderAsistenciaPanel
               evento={evento}
               invitado={miInvitacion}
-              onResponded={onResponded}
+              onResponded={onChanged}
             />
           </div>
         )}
+
+        {/* Acciones del creador: editar / cancelar (solo evento ACTIVO) */}
+        {esCreador && eventoActivo && (
+          <div className="px-6 py-4 border-t border-[#E5E7EB] bg-[#FAFBFC] flex justify-end gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCancelOpen(true)}
+              className="text-[#DC2626] border-[#FECACA] hover:bg-[#FEF2F2] text-xs"
+            >
+              Cancelar evento
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => setEditOpen(true)}
+              className="bg-[#1E3A5F] hover:bg-[#2D4A6F] text-white text-xs"
+            >
+              Editar evento
+            </Button>
+          </div>
+        )}
       </DialogContent>
+
+      {esCreador && eventoActivo && (
+        <>
+          <EditarEventoDialog
+            open={editOpen}
+            evento={evento}
+            onClose={() => setEditOpen(false)}
+            onSaved={() => {
+              setEditOpen(false)
+              onChanged()
+            }}
+          />
+          <CancelarEventoDialog
+            open={cancelOpen}
+            eventoId={evento.id}
+            titulo={evento.titulo}
+            onClose={() => setCancelOpen(false)}
+            onCanceled={() => {
+              setCancelOpen(false)
+              onChanged()
+            }}
+          />
+        </>
+      )}
     </Dialog>
   )
 }
@@ -633,7 +688,7 @@ export default function Events() {
           evento={selectedEvento}
           currentUserId={user?.id}
           onClose={() => setSelectedEvento(null)}
-          onResponded={() => {
+          onChanged={() => {
             refetch()
             setSelectedEvento(null)
           }}
