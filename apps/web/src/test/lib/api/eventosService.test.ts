@@ -118,12 +118,17 @@ describe('eventosService', () => {
     )
 
     expect(mockedClient.post).toHaveBeenCalledTimes(1)
-    const [url, body] = mockedClient.post.mock.calls[0]
+    const [url, body, config] = mockedClient.post.mock.calls[0]
     expect(url).toBe('/eventos/1/resultado')
     expect(body).toBeInstanceOf(FormData)
     const form = body as FormData
     expect(form.get('data')).toBeInstanceOf(Blob)
     expect(form.getAll('archivos')).toHaveLength(1)
+    // Override del Content-Type para que axios use multipart con boundary
+    // en lugar del application/json default del apiClient.
+    expect((config as { headers?: Record<string, string> } | undefined)?.headers?.['Content-Type']).toBe(
+      'multipart/form-data',
+    )
   })
 
   it('obtenerResultado consulta /eventos/{id}/resultado', async () => {

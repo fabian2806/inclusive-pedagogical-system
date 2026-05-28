@@ -17,7 +17,9 @@ import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { CancelarEventoDialog } from '@/components/events/CancelarEventoDialog'
 import { EditarEventoDialog } from '@/components/events/EditarEventoDialog'
 import { NuevoEventoDialog } from '@/components/events/NuevoEventoDialog'
+import { RegistrarResultadoDialog } from '@/components/events/RegistrarResultadoDialog'
 import { ResponderAsistenciaPanel } from '@/components/events/ResponderAsistenciaPanel'
+import { ResultadoEventoSection } from '@/components/events/ResultadoEventoSection'
 import { useApiQuery } from '@/hooks/useApiQuery'
 import { useAuth } from '@/hooks/useAuth'
 import { eventosService } from '@/lib/api'
@@ -148,7 +150,8 @@ function inicioDeSemana(referencia: Date, offsetSemanas: number): Date {
 // 4d.2: info completa + lista de invitados, read-only.
 // 4d.4: panel de respuesta de asistencia para el usuario invitado.
 // 4d.5: acciones del creador (cancelar + editar).
-// 4d.6: agregara registrar resultado.
+// 4d.6: registrar resultado (cuando el evento ya inicio) + seccion Resultado
+//       visible cuando el evento esta FINALIZADO.
 
 function EventoDetailModal({
   evento,
@@ -173,9 +176,15 @@ function EventoDetailModal({
       : undefined
   const esCreador = currentUserId != null && evento.usuarioCreador.id === currentUserId
   const eventoActivo = evento.estado === 'ACTIVO'
+  const eventoFinalizado = evento.estado === 'FINALIZADO'
+  // El docente puede registrar resultado solo cuando el evento ya inicio
+  // (mientras el evento sigue activo). Si todavia no inicia, no se permite.
+  const puedeRegistrarResultado =
+    esCreador && eventoActivo && new Date(evento.fechaInicio).getTime() <= Date.now()
 
   const [editOpen, setEditOpen] = useState(false)
   const [cancelOpen, setCancelOpen] = useState(false)
+  const [resultadoOpen, setResultadoOpen] = useState(false)
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -258,6 +267,11 @@ function EventoDetailModal({
             </div>
           )}
 
+          {/* Resultado registrado (solo cuando FINALIZADO) */}
+          {eventoFinalizado && (
+            <ResultadoEventoSection eventoId={evento.id} alumnoId={evento.alumno.id} />
+          )}
+
           {/* Invitados */}
           <div>
             <p className="text-[10px] font-semibold text-[#9CA3AF] uppercase tracking-wide mb-2">
@@ -290,9 +304,10 @@ function EventoDetailModal({
           </div>
         )}
 
-        {/* Acciones del creador: editar / cancelar (solo evento ACTIVO) */}
+        {/* Acciones del creador: cancelar / editar / registrar resultado.
+            Solo aparece mientras el evento esta ACTIVO. */}
         {esCreador && eventoActivo && (
-          <div className="px-6 py-4 border-t border-[#E5E7EB] bg-[#FAFBFC] flex justify-end gap-2">
+          <div className="px-6 py-4 border-t border-[#E5E7EB] bg-[#FAFBFC] flex justify-end gap-2 flex-wrap">
             <Button
               variant="outline"
               size="sm"
@@ -302,12 +317,22 @@ function EventoDetailModal({
               Cancelar evento
             </Button>
             <Button
+              variant="outline"
               size="sm"
               onClick={() => setEditOpen(true)}
-              className="bg-[#1E3A5F] hover:bg-[#2D4A6F] text-white text-xs"
+              className="border-[#E5E7EB] text-[#374151] hover:bg-[#F3F4F6] text-xs"
             >
               Editar evento
             </Button>
+            {puedeRegistrarResultado && (
+              <Button
+                size="sm"
+                onClick={() => setResultadoOpen(true)}
+                className="bg-[#059669] hover:bg-[#047857] text-white text-xs"
+              >
+                Registrar resultado
+              </Button>
+            )}
           </div>
         )}
       </DialogContent>
@@ -333,6 +358,18 @@ function EventoDetailModal({
               onChanged()
             }}
           />
+          {puedeRegistrarResultado && (
+            <RegistrarResultadoDialog
+              open={resultadoOpen}
+              eventoId={evento.id}
+              eventoTitulo={evento.titulo}
+              onClose={() => setResultadoOpen(false)}
+              onRegistered={() => {
+                setResultadoOpen(false)
+                onChanged()
+              }}
+            />
+          )}
         </>
       )}
     </Dialog>

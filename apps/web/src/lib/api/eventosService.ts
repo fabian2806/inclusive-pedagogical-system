@@ -80,6 +80,7 @@ export const eventosService = {
     const response = await apiClient.post<ResultadoEventoResponse>(
       `/eventos/${id}/resultado`,
       form,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
     )
     return response.data
   },

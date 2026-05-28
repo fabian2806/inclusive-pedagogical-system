@@ -33,6 +33,7 @@ export const eventoArchivosService = {
     const response = await apiClient.post<EventoArchivoResponse>(
       `/eventos/${eventoId}/archivos`,
       form,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
     )
     return response.data
   },
