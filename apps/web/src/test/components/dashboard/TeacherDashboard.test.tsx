@@ -3,17 +3,26 @@ import { screen, waitFor } from '@testing-library/react'
 import TeacherDashboard from '@/components/dashboard/TeacherDashboard'
 import { dashboardService } from '@/lib/api/dashboardService'
 import { alumnosService } from '@/lib/api/alumnosService'
+import { eventosService } from '@/lib/api/eventosService'
+import { notificacionesService } from '@/lib/api/notificacionesService'
 import { renderWithProviders } from '../../helpers/renderWithProviders'
 import type { ActividadEntradaResponse, AlumnoResponse } from '@/types/api'
 
 vi.mock('@/lib/api/dashboardService')
 vi.mock('@/lib/api/alumnosService')
+vi.mock('@/lib/api/eventosService')
+vi.mock('@/lib/api/notificacionesService')
 
 const mockedDashboard = vi.mocked(dashboardService)
 const mockedAlumnos = vi.mocked(alumnosService)
+const mockedEventos = vi.mocked(eventosService)
+const mockedNotificaciones = vi.mocked(notificacionesService)
 
 beforeEach(() => {
   vi.clearAllMocks()
+  // Default: sin eventos ni notificaciones para que cada test setee lo que necesite.
+  mockedEventos.listar.mockResolvedValue([])
+  mockedNotificaciones.listarMias.mockResolvedValue([])
 })
 
 function alumnoFake(id: number, nombre: string): AlumnoResponse {
@@ -68,7 +77,7 @@ describe('TeacherDashboard', () => {
     expect(screen.getByText('Estudiantes sin perfil')).toBeInTheDocument()
   })
 
-  it('muestra Próximos eventos como placeholder Fase 4 (no datos mock)', async () => {
+  it('muestra Próximos eventos con estado vacío y CTA a crear cuando no hay eventos', async () => {
     mockedDashboard.getDocenteResumen.mockResolvedValue({
       alumnosAsignados: 0, entradasBitacoraHoy: 0, alumnosSinPerfilDiscapacidad: 0,
     })
@@ -80,8 +89,10 @@ describe('TeacherDashboard', () => {
     await waitFor(() => {
       expect(screen.getByText('Próximos eventos')).toBeInTheDocument()
     })
-    expect(screen.getByText(/La gestión de eventos llegará en una fase posterior/i)).toBeInTheDocument()
-    expect(screen.queryByText(/Reunión con familia Mendoza/i)).not.toBeInTheDocument()
+    expect(screen.getByText('Sin eventos próximos.')).toBeInTheDocument()
+    // El CTA Crear evento enlaza a /dashboard/eventos.
+    const crearLink = screen.getByRole('link', { name: /Crear evento/i })
+    expect(crearLink).toHaveAttribute('href', '/dashboard/eventos')
   })
 
   it('renderiza estudiantes recientes con datos reales', async () => {

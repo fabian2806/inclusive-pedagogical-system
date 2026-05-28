@@ -1,6 +1,6 @@
-import { useCallback } from "react"
+import { useCallback, useMemo } from "react"
 import { Link } from "react-router-dom"
-import { AlertCircle, Calendar, Clock, FileText, Loader2, Users } from "lucide-react"
+import { AlertCircle, Bell, Calendar, ChevronRight, Clock, FileText, Loader2, Users } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -8,7 +8,9 @@ import { Badge } from "@/components/ui/badge"
 import { useApiQuery } from "@/hooks/useApiQuery"
 import { alumnosService } from "@/lib/api/alumnosService"
 import { dashboardService } from "@/lib/api/dashboardService"
-import type { ActividadEntradaResponse, TipoEntrada } from "@/types/api"
+import { eventosService } from "@/lib/api/eventosService"
+import { notificacionesService } from "@/lib/api/notificacionesService"
+import type { ActividadEntradaResponse, EventoResponse, TipoEntrada } from "@/types/api"
 
 const TIPO_ENTRADA_LABEL: Record<TipoEntrada, string> = {
   OBSERVACION_PEDAGOGICA: "Observación pedagógica",
@@ -40,12 +42,43 @@ export default function TeacherDashboard({ userName }: { userName: string }) {
   const fetchResumen = useCallback(() => dashboardService.getDocenteResumen(), [])
   const fetchAlumnos = useCallback(() => alumnosService.listar(), [])
   const fetchActividad = useCallback(() => dashboardService.getActividadRecienteDocente(5), [])
+  // Fetch sin filtro de fecha: traemos todos los eventos visibles y
+  // particionamos client-side. La lista del docente es chica (eventos sobre
+  // sus alumnos asignados), no justifica un endpoint dashboard-especifico.
+  const fetchEventos = useCallback(() => eventosService.listar(), [])
+  const fetchNotificaciones = useCallback(() => notificacionesService.listarMias(), [])
 
   const { data: resumen, isLoading: loadingResumen, error: errorResumen } = useApiQuery(fetchResumen)
   const { data: alumnos, isLoading: loadingAlumnos } = useApiQuery(fetchAlumnos)
   const { data: actividad, isLoading: loadingActividad } = useApiQuery(fetchActividad)
+  const { data: eventos, isLoading: loadingEventos } = useApiQuery(fetchEventos)
+  const { data: notificaciones } = useApiQuery(fetchNotificaciones)
 
   const alumnosRecientes = (alumnos ?? []).slice(0, 5)
+
+  const { proximos, eventosSemana } = useMemo(() => {
+    const ahora = Date.now()
+    const finSemana = ahora + 7 * 24 * 60 * 60 * 1000
+    const activosFuturos = (eventos ?? [])
+      .filter(
+        (ev) => ev.estado === "ACTIVO" && new Date(ev.fechaInicio).getTime() >= ahora,
+      )
+      .sort(
+        (a, b) =>
+          new Date(a.fechaInicio).getTime() - new Date(b.fechaInicio).getTime(),
+      )
+    return {
+      proximos: activosFuturos.slice(0, 5),
+      eventosSemana: activosFuturos.filter(
+        (ev) => new Date(ev.fechaInicio).getTime() <= finSemana,
+      ).length,
+    }
+  }, [eventos])
+
+  const notifsNoLeidas = useMemo(
+    () => (notificaciones ?? []).filter((n) => n.fechaLectura === null).length,
+    [notificaciones],
+  )
 
   return (
     <div className="p-6 space-y-6">
@@ -169,23 +202,56 @@ export default function TeacherDashboard({ userName }: { userName: string }) {
           </CardContent>
         </Card>
 
-        {/* Próximos eventos: placeholder Fase 4 */}
+        {/* Próximos eventos (Fase 4) */}
         <Card className="border-[#E5E7EB]">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg text-[#1E3A5F]">Próximos eventos</CardTitle>
-              <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 font-normal">
-                Próximamente
-              </Badge>
+              <Link to="/dashboard/eventos">
+                <Button variant="ghost" size="sm" className="text-[#3B82F6] hover:text-[#2563EB] text-xs">
+                  Ver todos
+                </Button>
+              </Link>
+            </div>
+            {/* Mini-stats de coordinacion: cuentan eventos visibles para el
+                docente (creador o invitado) en los proximos 7 dias, y
+                notificaciones no leidas. */}
+            <div className="flex items-center gap-3 mt-2 text-xs text-[#6B7280]">
+              <span className="flex items-center gap-1">
+                <Calendar size={12} className="text-[#3B82F6]" />
+                <span className="font-semibold text-[#1E3A5F]">{eventosSemana}</span>
+                <span>esta semana</span>
+              </span>
+              <span className="text-[#D1D5DB]">·</span>
+              <span className="flex items-center gap-1">
+                <Bell size={12} className="text-[#8B5CF6]" />
+                <span className="font-semibold text-[#1E3A5F]">{notifsNoLeidas}</span>
+                <span>no leídas</span>
+              </span>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col items-center justify-center py-10 text-center">
-              <Calendar size={32} className="text-[#9CA3AF] mb-3" />
-              <p className="text-sm text-[#6B7280] max-w-50">
-                La gestión de eventos llegará en una fase posterior.
-              </p>
-            </div>
+            {loadingEventos && (
+              <p className="text-sm text-[#9CA3AF] py-4 text-center">Cargando eventos…</p>
+            )}
+            {!loadingEventos && proximos.length === 0 && (
+              <div className="flex flex-col items-center py-8 text-center">
+                <Calendar size={28} className="text-[#D1D5DB] mb-2" />
+                <p className="text-sm text-[#6B7280]">Sin eventos próximos.</p>
+                <Link to="/dashboard/eventos" className="mt-3">
+                  <Button size="sm" className="bg-[#1E3A5F] hover:bg-[#2D4A6F] text-white text-xs">
+                    Crear evento
+                  </Button>
+                </Link>
+              </div>
+            )}
+            {!loadingEventos && proximos.length > 0 && (
+              <div className="space-y-2">
+                {proximos.map((ev) => (
+                  <ProximoEventoRow key={ev.id} evento={ev} />
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -246,6 +312,45 @@ function KpiCard({ title, value, icon: Icon, color, highlight }: KpiCardProps) {
         </div>
       </CardContent>
     </Card>
+  )
+}
+
+function ProximoEventoRow({ evento }: { evento: EventoResponse }) {
+  const tipoLabel =
+    evento.tipoEvento === "REUNION_PADRES" ? "Reunión" : "SAANEE"
+  const tipoBadge =
+    evento.tipoEvento === "REUNION_PADRES"
+      ? "bg-[#F0F9FF] text-[#0284C7]"
+      : "bg-[#FDF4FF] text-[#A21CAF]"
+  return (
+    <Link
+      to="/dashboard/eventos"
+      className="flex items-center gap-3 p-2.5 rounded-lg border border-[#E5E7EB] hover:bg-[#F9FAFB] transition-colors"
+    >
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+          <Badge
+            variant="outline"
+            className={`text-[9px] px-1.5 py-0 h-4 font-normal border-transparent ${tipoBadge}`}
+          >
+            {tipoLabel}
+          </Badge>
+          <p className="text-xs font-medium text-[#1E3A5F] truncate">{evento.titulo}</p>
+        </div>
+        <p className="text-[11px] text-[#6B7280] flex items-center gap-1">
+          <Clock size={10} />
+          {new Date(evento.fechaInicio).toLocaleString("es-PE", {
+            day: "2-digit",
+            month: "short",
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+          <span className="text-[#D1D5DB]">·</span>
+          {evento.alumno.nombre} {evento.alumno.apellido}
+        </p>
+      </div>
+      <ChevronRight size={14} className="text-[#9CA3AF] shrink-0" />
+    </Link>
   )
 }
 
