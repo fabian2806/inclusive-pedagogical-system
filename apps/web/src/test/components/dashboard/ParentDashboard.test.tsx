@@ -2,16 +2,26 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { screen, waitFor } from '@testing-library/react'
 import ParentDashboard from '@/components/dashboard/ParentDashboard'
 import { dashboardService } from '@/lib/api/dashboardService'
+import { eventosService } from '@/lib/api/eventosService'
 import { renderWithProviders } from '../../helpers/renderWithProviders'
-import type { HijoResumen } from '@/types/api'
+import type { User } from '@/types/auth'
+import type { EventoResponse, HijoResumen } from '@/types/api'
 
 vi.mock('@/lib/api/dashboardService')
+vi.mock('@/lib/api/eventosService')
 
 const mockedService = vi.mocked(dashboardService)
+const mockedEventos = vi.mocked(eventosService)
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mockedEventos.listar.mockResolvedValue([])
 })
+
+const padre: User = {
+  id: 42, nombre: 'Laura', apellido: 'Diaz', correo: 'laura@test.com',
+  telefono: null, rol: 'padre', authorities: [],
+}
 
 function hijoFake(id: number, nombre: string, expedienteId: number | null = 100): HijoResumen {
   return {
@@ -19,8 +29,31 @@ function hijoFake(id: number, nombre: string, expedienteId: number | null = 100)
   }
 }
 
+function eventoFake(opts: Partial<EventoResponse> & { id: number }): EventoResponse {
+  return {
+    id: opts.id,
+    titulo: opts.titulo ?? 'Reunión con familia Rodríguez',
+    descripcion: null,
+    fechaInicio: opts.fechaInicio ?? new Date(Date.now() + 24 * 3600_000).toISOString(),
+    fechaFin: opts.fechaFin ?? new Date(Date.now() + 25 * 3600_000).toISOString(),
+    tipoEvento: 'REUNION_PADRES',
+    modalidad: 'PRESENCIAL',
+    ubicacion: 'Sala A',
+    estado: opts.estado ?? 'ACTIVO',
+    motivoCancelacion: null,
+    alumno: { id: 7, nombre: 'Sofía', apellido: 'Rodríguez', grado: '3ro', seccion: 'A' },
+    usuarioCreador: { id: 1, nombre: 'María', apellido: 'Castro', rol: 'DOCENTE' },
+    fechaCreacion: new Date().toISOString(),
+    fechaActualizacion: null,
+    invitados: opts.invitados ?? [],
+  }
+}
+
 function render() {
-  return renderWithProviders(<ParentDashboard userName="Laura Diaz" />, { route: '/dashboard' })
+  return renderWithProviders(<ParentDashboard userName="Laura Diaz" />, {
+    route: '/dashboard',
+    user: padre,
+  })
 }
 
 describe('ParentDashboard', () => {
@@ -83,7 +116,7 @@ describe('ParentDashboard', () => {
     })
   })
 
-  it('muestra Reuniones por confirmar como placeholder Fase 4 (sin datos mock)', async () => {
+  it('Reuniones por confirmar muestra empty state cuando no hay invitaciones PENDIENTES', async () => {
     mockedService.getPadreResumen.mockResolvedValue({
       hijos: [hijoFake(1, 'Sofía')],
       entradasNuevasHoy: 0,
@@ -95,9 +128,67 @@ describe('ParentDashboard', () => {
       expect(screen.getByText('Reuniones por confirmar')).toBeInTheDocument()
     })
     expect(
-      screen.getByText(/La gestión de reuniones y eventos llegará en una fase posterior/i),
+      screen.getByText(/No tienes reuniones pendientes de confirmar/i),
     ).toBeInTheDocument()
-    expect(screen.queryByText(/Reunión de seguimiento trimestral/i)).not.toBeInTheDocument()
+  })
+
+  it('Reuniones por confirmar lista solo eventos donde el padre es invitado PENDIENTE', async () => {
+    mockedService.getPadreResumen.mockResolvedValue({
+      hijos: [hijoFake(7, 'Sofía')],
+      entradasNuevasHoy: 0,
+    })
+    mockedEventos.listar.mockResolvedValue([
+      // PENDIENTE para el padre id=42: SI cuenta.
+      eventoFake({
+        id: 1,
+        titulo: 'Reunión pendiente',
+        invitados: [
+          {
+            id: 100,
+            usuario: { id: 42, nombre: 'Laura', apellido: 'Diaz', rol: 'PADRE' },
+            estadoAsistencia: 'PENDIENTE',
+            fechaRespuesta: null,
+            motivoRechazo: null,
+          },
+        ],
+      }),
+      // CONFIRMADO para el padre id=42: NO cuenta.
+      eventoFake({
+        id: 2,
+        titulo: 'Reunión ya confirmada',
+        invitados: [
+          {
+            id: 101,
+            usuario: { id: 42, nombre: 'Laura', apellido: 'Diaz', rol: 'PADRE' },
+            estadoAsistencia: 'CONFIRMADO',
+            fechaRespuesta: new Date().toISOString(),
+            motivoRechazo: null,
+          },
+        ],
+      }),
+      // PENDIENTE pero para OTRO padre: NO cuenta.
+      eventoFake({
+        id: 3,
+        titulo: 'Reunión de otra familia',
+        invitados: [
+          {
+            id: 102,
+            usuario: { id: 99, nombre: 'Otra', apellido: 'Persona', rol: 'PADRE' },
+            estadoAsistencia: 'PENDIENTE',
+            fechaRespuesta: null,
+            motivoRechazo: null,
+          },
+        ],
+      }),
+    ])
+
+    render()
+
+    await waitFor(() => {
+      expect(screen.getByText('Reunión pendiente')).toBeInTheDocument()
+    })
+    expect(screen.queryByText('Reunión ya confirmada')).not.toBeInTheDocument()
+    expect(screen.queryByText('Reunión de otra familia')).not.toBeInTheDocument()
   })
 
   it('muestra mensaje de error si el fetch falla', async () => {

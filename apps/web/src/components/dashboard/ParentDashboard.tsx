@@ -1,18 +1,42 @@
-import { useCallback } from "react"
+import { useCallback, useMemo } from "react"
 import { Link } from "react-router-dom"
-import { Calendar, ChevronRight, FileText, Loader2, Users } from "lucide-react"
+import { Calendar, ChevronRight, Clock, FileText, Loader2, Users } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useApiQuery } from "@/hooks/useApiQuery"
+import { useAuth } from "@/hooks/useAuth"
 import { dashboardService } from "@/lib/api/dashboardService"
+import { eventosService } from "@/lib/api/eventosService"
+import type { EventoResponse } from "@/types/api"
 
 export default function ParentDashboard({ userName }: { userName: string }) {
   const firstName = userName.split(" ")[0] || "Usuario"
+  const { user } = useAuth()
 
   const fetchResumen = useCallback(() => dashboardService.getPadreResumen(), [])
+  const fetchEventos = useCallback(() => eventosService.listar(), [])
   const { data: resumen, isLoading, error } = useApiQuery(fetchResumen)
+  const { data: eventos, isLoading: loadingEventos } = useApiQuery(fetchEventos)
+
+  // Reuniones por confirmar: eventos ACTIVO con fecha futura donde este
+  // padre figura como invitado con estadoAsistencia PENDIENTE.
+  const reunionesPorConfirmar = useMemo(() => {
+    if (!user || !eventos) return []
+    const ahora = Date.now()
+    return eventos
+      .filter((ev) => ev.estado === "ACTIVO" && new Date(ev.fechaInicio).getTime() >= ahora)
+      .filter((ev) =>
+        ev.invitados.some(
+          (inv) => inv.usuario.id === user.id && inv.estadoAsistencia === "PENDIENTE",
+        ),
+      )
+      .sort(
+        (a, b) =>
+          new Date(a.fechaInicio).getTime() - new Date(b.fechaInicio).getTime(),
+      )
+  }, [eventos, user])
 
   return (
     <div className="p-6 space-y-6">
@@ -146,31 +170,80 @@ export default function ParentDashboard({ userName }: { userName: string }) {
             </CardContent>
           </Card>
 
-          {/* Reuniones por confirmar: placeholder Fase 4 */}
+          {/* Reuniones por confirmar (Fase 4) */}
           <Card className="border-[#E5E7EB]">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base text-[#1E3A5F]">Reuniones por confirmar</CardTitle>
-                <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 font-normal">
-                  Próximamente
-                </Badge>
+                <CardTitle className="text-base text-[#1E3A5F]">
+                  Reuniones por confirmar
+                  {reunionesPorConfirmar.length > 0 && (
+                    <span className="ml-2 text-xs font-normal text-[#D97706] bg-[#FEF3C7] px-2 py-0.5 rounded-full">
+                      {reunionesPorConfirmar.length}
+                    </span>
+                  )}
+                </CardTitle>
+                <Link to="/dashboard/eventos">
+                  <Button variant="ghost" size="sm" className="text-[#3B82F6] hover:text-[#2563EB] text-xs">
+                    Ver eventos
+                  </Button>
+                </Link>
               </div>
               <p className="text-xs text-[#6B7280] mt-0.5">
                 Invitaciones del docente que requieren tu respuesta
               </p>
             </CardHeader>
             <CardContent>
-              <div className="py-8 flex flex-col items-center text-center">
-                <Calendar size={28} className="text-[#9CA3AF] mb-2" />
-                <p className="text-sm text-[#6B7280] max-w-60">
-                  La gestión de reuniones y eventos llegará en una fase posterior.
-                </p>
-              </div>
+              {loadingEventos && (
+                <p className="text-sm text-[#9CA3AF] py-4 text-center">Cargando reuniones…</p>
+              )}
+              {!loadingEventos && reunionesPorConfirmar.length === 0 && (
+                <div className="py-8 flex flex-col items-center text-center">
+                  <Calendar size={28} className="text-[#D1D5DB] mb-2" />
+                  <p className="text-sm text-[#6B7280] max-w-60">
+                    No tienes reuniones pendientes de confirmar.
+                  </p>
+                </div>
+              )}
+              {!loadingEventos && reunionesPorConfirmar.length > 0 && (
+                <div className="space-y-2">
+                  {reunionesPorConfirmar.map((ev) => (
+                    <ReunionPorConfirmarRow key={ev.id} evento={ev} />
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </>
       )}
     </div>
+  )
+}
+
+function ReunionPorConfirmarRow({ evento }: { evento: EventoResponse }) {
+  return (
+    <Link
+      to="/dashboard/eventos"
+      className="flex items-center gap-3 p-3 rounded-lg border border-[#FDE68A] bg-[#FFFBEB] hover:bg-[#FEF3C7] transition-colors"
+    >
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-[#1E3A5F] truncate">{evento.titulo}</p>
+        <p className="text-[11px] text-[#6B7280] flex items-center gap-1 mt-0.5">
+          <Clock size={10} />
+          {new Date(evento.fechaInicio).toLocaleString("es-PE", {
+            day: "2-digit",
+            month: "short",
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+          <span className="text-[#D1D5DB]">·</span>
+          {evento.alumno.nombre} {evento.alumno.apellido}
+        </p>
+      </div>
+      <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#FEF3C7] text-[#D97706]">
+        Pendiente
+      </span>
+      <ChevronRight size={14} className="text-[#9CA3AF] shrink-0" />
+    </Link>
   )
 }
 
