@@ -11,13 +11,17 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.test.context.ActiveProfiles;
 import pe.edu.pucp.signaedu.signaedu_backend.model.Alumno;
 import pe.edu.pucp.signaedu.signaedu_backend.model.EntradaExpediente;
+import pe.edu.pucp.signaedu.signaedu_backend.model.Evento;
 import pe.edu.pucp.signaedu.signaedu_backend.model.Expediente;
 import pe.edu.pucp.signaedu.signaedu_backend.model.Rol;
 import pe.edu.pucp.signaedu.signaedu_backend.model.Usuario;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.EstadoAlumno;
+import pe.edu.pucp.signaedu.signaedu_backend.model.enums.EstadoEvento;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.EstadoExpediente;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.EstadoUsuario;
+import pe.edu.pucp.signaedu.signaedu_backend.model.enums.ModalidadEvento;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.TipoEntrada;
+import pe.edu.pucp.signaedu.signaedu_backend.model.enums.TipoEvento;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.TipoRol;
 import pe.edu.pucp.signaedu.signaedu_backend.repository.specs.EntradaExpedienteSpecs;
 
@@ -312,5 +316,70 @@ class EntradaExpedienteRepositoryTest {
 
         assertThat(resultado).hasSize(1);
         assertThat(resultado.get(0).getDescripcion()).isEqualTo("del-mio");
+    }
+
+    // ============ Fase 4: queries de evento_id ============
+
+    @Test
+    void existsByEvento_IdAndTipoEntrada_retornaTrueCuandoExisteEntradaVinculada() {
+        Evento evento = crearEvento();
+        crearEntradaVinculadaAEvento(expedienteA, TipoEntrada.EVENTO_AGENDA, evento, "Resultado registrado");
+
+        boolean existe = entradaRepository.existsByEvento_IdAndTipoEntrada(
+                evento.getId(), TipoEntrada.EVENTO_AGENDA);
+
+        assertThat(existe).isTrue();
+    }
+
+    @Test
+    void existsByEvento_IdAndTipoEntrada_retornaFalseCuandoNoHayEntradaVinculada() {
+        Evento evento = crearEvento();
+        // Hay una entrada del expediente pero sin evento_id.
+        crearEntrada(expedienteA, TipoEntrada.OBSERVACION_PEDAGOGICA, LocalDateTime.now(), "no vinculada");
+
+        boolean existe = entradaRepository.existsByEvento_IdAndTipoEntrada(
+                evento.getId(), TipoEntrada.EVENTO_AGENDA);
+
+        assertThat(existe).isFalse();
+    }
+
+    @Test
+    void findFirstByEvento_IdAndTipoEntrada_retornaLaEntradaDeResultadoCuandoExiste() {
+        Evento evento = crearEvento();
+        EntradaExpediente esperada = crearEntradaVinculadaAEvento(
+                expedienteA, TipoEntrada.EVENTO_AGENDA, evento, "El resultado");
+
+        java.util.Optional<EntradaExpediente> resultado = entradaRepository
+                .findFirstByEvento_IdAndTipoEntrada(evento.getId(), TipoEntrada.EVENTO_AGENDA);
+
+        assertThat(resultado).isPresent();
+        assertThat(resultado.get().getId()).isEqualTo(esperada.getId());
+        assertThat(resultado.get().getDescripcion()).isEqualTo("El resultado");
+    }
+
+    private Evento crearEvento() {
+        return entityManager.persistAndFlush(Evento.builder()
+                .titulo("Reunion")
+                .fechaInicio(LocalDateTime.now().plusDays(1))
+                .fechaFin(LocalDateTime.now().plusDays(1).plusHours(1))
+                .tipoEvento(TipoEvento.REUNION_PADRES)
+                .modalidad(ModalidadEvento.PRESENCIAL)
+                .estado(EstadoEvento.ACTIVO)
+                .alumno(alumnoA)
+                .usuarioCreador(autor)
+                .fechaCreacion(LocalDateTime.now())
+                .build());
+    }
+
+    private EntradaExpediente crearEntradaVinculadaAEvento(
+            Expediente expediente, TipoEntrada tipo, Evento evento, String descripcion) {
+        return entityManager.persistAndFlush(EntradaExpediente.builder()
+                .expediente(expediente)
+                .tipoEntrada(tipo)
+                .usuario(autor)
+                .fecha(LocalDateTime.now())
+                .descripcion(descripcion)
+                .evento(evento)
+                .build());
     }
 }

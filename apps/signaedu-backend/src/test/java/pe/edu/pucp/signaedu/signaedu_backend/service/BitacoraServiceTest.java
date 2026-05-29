@@ -28,6 +28,7 @@ import pe.edu.pucp.signaedu.signaedu_backend.model.enums.AreaCurricular;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.EstadoAlumno;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.EstadoExpediente;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.TipoEntrada;
+import pe.edu.pucp.signaedu.signaedu_backend.model.enums.TipoNotificacion;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.TipoRol;
 import pe.edu.pucp.signaedu.signaedu_backend.repository.AlumnoRepository;
 import pe.edu.pucp.signaedu.signaedu_backend.repository.EntradaExpedienteRepository;
@@ -45,6 +46,7 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -80,6 +82,9 @@ class BitacoraServiceTest {
 
     @Mock
     private EntradaExpedienteMapper mapper;
+
+    @Mock
+    private NotificacionService notificacionService;
 
     @InjectMocks
     private BitacoraService bitacoraService;
@@ -172,8 +177,16 @@ class BitacoraServiceTest {
     }
 
     private void stubGuardadoYRespuesta() {
+        // Asigna id al persistir; sin esto, any(Long.class) en verify de
+        // notificaciones (referenciaId) no matchea porque getId() seguiria null.
         when(entradaRepository.save(any(EntradaExpediente.class)))
-                .thenAnswer(inv -> inv.getArgument(0));
+                .thenAnswer(inv -> {
+                    EntradaExpediente e = inv.getArgument(0);
+                    if (e.getId() == null) {
+                        e.setId(1L);
+                    }
+                    return e;
+                });
         when(mapper.toResponse(any())).thenReturn(EntradaExpedienteResponse.builder().id(1L).build());
     }
 
@@ -528,5 +541,66 @@ class BitacoraServiceTest {
                 .hasMessageContaining("indicadorId solo se permite");
 
         verify(entradaRepository, never()).save(any());
+    }
+
+    // ============ trigger ENTRADA_EXPD (Fase 4 - 4c.3) ============
+
+    @Test
+    void entradaConDirigidoAOtroUsuario_disparaNotificacionTipoEntradaExpd() {
+        stubAccesoDocenteAsignado();
+        stubExpedienteVigente();
+        stubGuardadoYRespuesta();
+
+        Long destinatarioId = 33L;
+        Usuario destinatario = Usuario.builder()
+                .id(destinatarioId).nombre("Padre").apellido("Receptor")
+                .correo("padre.receptor@signaedu.pe").passwordHash("hash")
+                .roles(new HashSet<>(Set.of(Rol.builder().id(3L).nombre(TipoRol.PADRE).build())))
+                .build();
+        when(usuarioRepository.getReferenceById(destinatarioId)).thenReturn(destinatario);
+
+        EntradaExpedienteRequest req = request(TipoEntrada.OBSERVACION_PEDAGOGICA);
+        req.setDirigidoAUsuarioId(destinatarioId);
+
+        bitacoraService.crear(ALUMNO_ID, req);
+
+        verify(notificacionService).crear(
+                eq(destinatario),
+                anyString(),
+                eq(TipoNotificacion.ENTRADA_EXPD),
+                any(Long.class),
+                any(Usuario.class));
+    }
+
+    @Test
+    void entradaSinDirigidoA_noDisparaNotificacion() {
+        stubAccesoDocenteAsignado();
+        stubExpedienteVigente();
+        stubGuardadoYRespuesta();
+
+        EntradaExpedienteRequest req = request(TipoEntrada.OBSERVACION_PEDAGOGICA);
+        // dirigidoAUsuarioId queda null por defecto.
+
+        bitacoraService.crear(ALUMNO_ID, req);
+
+        verify(notificacionService, never()).crear(any(), anyString(), any(), any(), any());
+    }
+
+    @Test
+    void entradaConDirigidoAlMismoAutor_noDisparaNotificacionPorGuardaAntiAutoNotif() {
+        stubAccesoDocenteAsignado();
+        stubExpedienteVigente();
+        stubGuardadoYRespuesta();
+
+        // El autor (USUARIO_ID=10) se dirige a si mismo: no debe autonotificarse.
+        when(usuarioRepository.getReferenceById(USUARIO_ID))
+                .thenReturn(usuarioConRol(TipoRol.DOCENTE));
+
+        EntradaExpedienteRequest req = request(TipoEntrada.OBSERVACION_PEDAGOGICA);
+        req.setDirigidoAUsuarioId(USUARIO_ID);
+
+        bitacoraService.crear(ALUMNO_ID, req);
+
+        verify(notificacionService, never()).crear(any(), anyString(), any(), any(), any());
     }
 }
