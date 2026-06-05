@@ -1,4 +1,5 @@
-import { AlertCircle, FileText } from "lucide-react"
+import { AlertCircle, Download, FileText } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { EntryTypeConfig } from "@/lib/bitacora-ui"
 import type { IndicadorResponse } from "@/types/api"
@@ -40,6 +41,10 @@ interface Props {
   replyText: string
   setReplyText: (s: string) => void
   onReply: (id: string) => void
+  // export
+  canExport: boolean
+  exporting: boolean
+  onExport: () => void
 }
 
 export function BitacoraSection({
@@ -64,30 +69,52 @@ export function BitacoraSection({
   replyText,
   setReplyText,
   onReply,
+  canExport,
+  exporting,
+  onExport,
 }: Props) {
   return (
     <Card className="border-[#E5E7EB]">
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <CardTitle className="text-lg text-[#1E3A5F] flex items-center gap-2">
             <FileText size={20} className="text-[#3B82F6]" />
             Bitácora del expediente
           </CardTitle>
-          {/* Filter tabs */}
-          <div className="flex items-center gap-1 bg-[#F3F4F6] rounded-lg p-1">
-            {FILTROS.map((f) => (
-              <button
-                key={f.id}
-                onClick={() => setActiveFilter(f.id)}
-                className={`text-xs px-3 h-6 rounded-md transition-colors ${
-                  activeFilter === f.id
-                    ? "bg-white text-[#1E3A5F] font-medium shadow-sm"
-                    : "text-[#6B7280] hover:text-[#374151]"
-                }`}
+          <div className="flex items-center gap-2">
+            {/* Filter tabs */}
+            <div className="flex items-center gap-1 bg-[#F3F4F6] rounded-lg p-1">
+              {FILTROS.map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => setActiveFilter(f.id)}
+                  className={`text-xs px-3 h-6 rounded-md transition-colors ${
+                    activeFilter === f.id
+                      ? "bg-white text-[#1E3A5F] font-medium shadow-sm"
+                      : "text-[#6B7280] hover:text-[#374151]"
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+            {canExport && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onExport}
+                disabled={exporting || entries.length === 0}
+                className="border-[#E5E7EB] text-[#374151] gap-1.5 h-8"
+                title={
+                  entries.length === 0
+                    ? "No hay entradas para exportar"
+                    : "Descargar la bitácora visible como CSV"
+                }
               >
-                {f.label}
-              </button>
-            ))}
+                <Download size={14} />
+                {exporting ? "Exportando…" : "Exportar CSV"}
+              </Button>
+            )}
           </div>
         </div>
       </CardHeader>

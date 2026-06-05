@@ -36,7 +36,7 @@ import { AxiosError } from "axios"
 export default function StudentRecord() {
   const { id } = useParams<{ id: string }>()
   const alumnoId = Number(id)
-  const { user } = useAuth()
+  const { user, hasPermission } = useAuth()
 
   const [activeMainTab, setActiveMainTab] = useState<"bitacora" | "documentos">("bitacora")
 
@@ -48,6 +48,9 @@ export default function StudentRecord() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [exporting, setExporting] = useState(false)
+
+  const canExport = hasPermission("EXPEDIENTE_EXPORTAR")
 
   // --- Carga del alumno y perfil de discapacidad (header del expediente) ---
   const fetchAlumno = useCallback(() => alumnosService.obtener(alumnoId), [alumnoId])
@@ -203,6 +206,35 @@ export default function StudentRecord() {
     }
   }
 
+  const handleExport = async () => {
+    if (!canExport) return
+    setExporting(true)
+    setError(null)
+    try {
+      const tipoBackend =
+        activeFilter !== "all" ? FRONT_TO_BACK[activeFilter] : undefined
+      const { blob, filename } = await bitacoraService.exportarCsv(alumnoId, {
+        ...(tipoBackend ? { tipo: tipoBackend } : {}),
+      })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.href = url
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      if (err instanceof AxiosError) {
+        setError(err.response?.data?.mensaje ?? err.message)
+      } else {
+        setError("Error inesperado al exportar la bitácora")
+      }
+    } finally {
+      setExporting(false)
+    }
+  }
+
   const handleReply = async (entryId: string) => {
     if (!replyText.trim()) return
     const raiz = entries.find(e => e.id === entryId)
@@ -318,6 +350,9 @@ export default function StudentRecord() {
               replyText={replyText}
               setReplyText={setReplyText}
               onReply={handleReply}
+              canExport={canExport}
+              exporting={exporting}
+              onExport={handleExport}
             />
           )}
 
