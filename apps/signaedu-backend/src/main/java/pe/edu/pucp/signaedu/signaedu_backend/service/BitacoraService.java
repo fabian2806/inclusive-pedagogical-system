@@ -21,6 +21,7 @@ import pe.edu.pucp.signaedu.signaedu_backend.model.enums.TipoEntrada;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.TipoNotificacion;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.TipoRol;
 import pe.edu.pucp.signaedu.signaedu_backend.repository.AlumnoRepository;
+import pe.edu.pucp.signaedu.signaedu_backend.repository.EntradaArchivoRepository;
 import pe.edu.pucp.signaedu.signaedu_backend.repository.EntradaExpedienteRepository;
 import pe.edu.pucp.signaedu.signaedu_backend.repository.ExpedienteRepository;
 import pe.edu.pucp.signaedu.signaedu_backend.repository.IndicadorRepository;
@@ -28,7 +29,9 @@ import pe.edu.pucp.signaedu.signaedu_backend.repository.UsuarioRepository;
 import pe.edu.pucp.signaedu.signaedu_backend.repository.specs.EntradaExpedienteSpecs;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -54,6 +57,7 @@ public class BitacoraService {
     );
 
     private final EntradaExpedienteRepository entradaRepository;
+    private final EntradaArchivoRepository entradaArchivoRepository;
     private final ExpedienteRepository expedienteRepository;
     private final AlumnoRepository alumnoRepository;
     private final UsuarioRepository usuarioRepository;
@@ -61,6 +65,15 @@ public class BitacoraService {
     private final ConfiguracionService configuracionService;
     private final EntradaExpedienteMapper mapper;
     private final NotificacionService notificacionService;
+
+    private static final DateTimeFormatter CSV_FECHA_FORMATO =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+    private static final String[] CSV_CABECERAS = {
+            "id", "fecha", "tipo", "autor", "rol_autor",
+            "titulo", "contenido", "entrada_raiz_id", "evento_id",
+            "archivos_adjuntos_count"
+    };
 
     @Transactional
     public EntradaExpedienteResponse crear(Long alumnoId, EntradaExpedienteRequest request) {
@@ -140,6 +153,125 @@ public class BitacoraService {
         return entradaRepository.findAll(spec, Sort.by(Sort.Direction.DESC, "fecha")).stream()
                 .map(mapper::toResponse)
                 .toList();
+    }
+
+    /**
+     * Exporta la bitacora del alumno a CSV (RFC 4180) reutilizando los mismos
+     * filtros y reglas de visibilidad de {@link #listar}. Las filas se ordenan
+     * por fecha ascendente (cronologico) para facilitar lectura del archivo.
+     * Columnas: id, fecha, tipo, autor, rol_autor, titulo, contenido,
+     * entrada_raiz_id, evento_id, archivos_adjuntos_count.
+     */
+    @Transactional(readOnly = true)
+    public String exportarCsv(
+            Long alumnoId, TipoEntrada tipo, LocalDateTime desde, LocalDateTime hasta) {
+        validarAccesoYObtenerUsuario(alumnoId);
+
+        StringBuilder csv = new StringBuilder();
+        escribirCabecera(csv);
+
+        Optional<Expediente> expediente = obtenerExpedienteVigente(alumnoId);
+        if (expediente.isEmpty()) {
+            return csv.toString();
+        }
+
+        Specification<EntradaExpediente> spec = Specification.allOf(
+                EntradaExpedienteSpecs.delExpediente(expediente.get().getId()),
+                EntradaExpedienteSpecs.conTipo(tipo),
+                EntradaExpedienteSpecs.desde(desde),
+                EntradaExpedienteSpecs.hasta(hasta)
+        );
+
+        List<EntradaExpediente> entradas = entradaRepository.findAll(
+                spec, Sort.by(Sort.Direction.ASC, "fecha"));
+
+        Map<Long, Long> conteoAdjuntos = obtenerConteoAdjuntos(entradas);
+
+        for (EntradaExpediente entrada : entradas) {
+            escribirFila(csv, entrada, conteoAdjuntos.getOrDefault(entrada.getId(), 0L));
+        }
+
+        return csv.toString();
+    }
+
+    private Map<Long, Long> obtenerConteoAdjuntos(List<EntradaExpediente> entradas) {
+        if (entradas.isEmpty()) {
+            return Map.of();
+        }
+        List<Long> ids = entradas.stream().map(EntradaExpediente::getId).toList();
+        Map<Long, Long> resultado = new HashMap<>();
+        for (Object[] fila : entradaArchivoRepository.contarPorEntradaIds(ids)) {
+            resultado.put((Long) fila[0], (Long) fila[1]);
+        }
+        return resultado;
+    }
+
+    private void escribirCabecera(StringBuilder csv) {
+        for (int i = 0; i < CSV_CABECERAS.length; i++) {
+            if (i > 0) csv.append(',');
+            csv.append(CSV_CABECERAS[i]);
+        }
+        csv.append("\r\n");
+    }
+
+    private void escribirFila(StringBuilder csv, EntradaExpediente entrada, long countAdjuntos) {
+        Usuario autor = entrada.getUsuario();
+        String nombreAutor = autor != null
+                ? (autor.getNombre() + " " + autor.getApellido()).trim()
+                : "";
+        String rolAutor = autor != null && !autor.getRoles().isEmpty()
+                ? autor.getRoles().iterator().next().getNombre().name()
+                : "";
+        Long entradaRaizId = entrada.getEntradaRaiz() != null
+                ? entrada.getEntradaRaiz().getId() : null;
+        Long eventoId = entrada.getEvento() != null
+                ? entrada.getEvento().getId() : null;
+
+        appendCampo(csv, String.valueOf(entrada.getId()));
+        csv.append(',');
+        appendCampo(csv, entrada.getFecha().format(CSV_FECHA_FORMATO));
+        csv.append(',');
+        appendCampo(csv, entrada.getTipoEntrada().name());
+        csv.append(',');
+        appendCampo(csv, nombreAutor);
+        csv.append(',');
+        appendCampo(csv, rolAutor);
+        csv.append(',');
+        appendCampo(csv, entrada.getTitulo());
+        csv.append(',');
+        appendCampo(csv, entrada.getDescripcion());
+        csv.append(',');
+        appendCampo(csv, entradaRaizId != null ? entradaRaizId.toString() : "");
+        csv.append(',');
+        appendCampo(csv, eventoId != null ? eventoId.toString() : "");
+        csv.append(',');
+        appendCampo(csv, String.valueOf(countAdjuntos));
+        csv.append("\r\n");
+    }
+
+    /**
+     * Escapa un campo CSV segun RFC 4180: si contiene coma, comilla doble
+     * o salto de linea, lo envuelve en comillas y dobla las internas.
+     */
+    private void appendCampo(StringBuilder csv, String valor) {
+        if (valor == null || valor.isEmpty()) {
+            return;
+        }
+        boolean requiereEscape = valor.indexOf(',') >= 0
+                || valor.indexOf('"') >= 0
+                || valor.indexOf('\n') >= 0
+                || valor.indexOf('\r') >= 0;
+        if (!requiereEscape) {
+            csv.append(valor);
+            return;
+        }
+        csv.append('"');
+        for (int i = 0; i < valor.length(); i++) {
+            char c = valor.charAt(i);
+            if (c == '"') csv.append('"');
+            csv.append(c);
+        }
+        csv.append('"');
     }
 
     private Expediente obtenerExpedienteVigenteOLanzar(Long alumnoId) {
