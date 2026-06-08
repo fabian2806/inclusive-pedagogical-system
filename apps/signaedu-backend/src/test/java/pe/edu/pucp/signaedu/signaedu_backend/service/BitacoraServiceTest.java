@@ -30,7 +30,9 @@ import pe.edu.pucp.signaedu.signaedu_backend.model.enums.EstadoExpediente;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.TipoEntrada;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.TipoNotificacion;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.TipoRol;
+import pe.edu.pucp.signaedu.signaedu_backend.model.Evento;
 import pe.edu.pucp.signaedu.signaedu_backend.repository.AlumnoRepository;
+import pe.edu.pucp.signaedu.signaedu_backend.repository.EntradaArchivoRepository;
 import pe.edu.pucp.signaedu.signaedu_backend.repository.EntradaExpedienteRepository;
 import pe.edu.pucp.signaedu.signaedu_backend.repository.ExpedienteRepository;
 import pe.edu.pucp.signaedu.signaedu_backend.repository.IndicadorRepository;
@@ -38,6 +40,7 @@ import pe.edu.pucp.signaedu.signaedu_backend.repository.UsuarioRepository;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -64,6 +67,9 @@ class BitacoraServiceTest {
 
     @Mock
     private EntradaExpedienteRepository entradaRepository;
+
+    @Mock
+    private EntradaArchivoRepository entradaArchivoRepository;
 
     @Mock
     private ExpedienteRepository expedienteRepository;
@@ -602,5 +608,154 @@ class BitacoraServiceTest {
         bitacoraService.crear(ALUMNO_ID, req);
 
         verify(notificacionService, never()).crear(any(), anyString(), any(), any(), any());
+    }
+
+    // ---------- exportarCsv (Fase 5) ----------
+
+    private EntradaExpediente entradaParaExport(
+            Long id, TipoEntrada tipo, LocalDateTime fecha,
+            String titulo, String descripcion) {
+        return EntradaExpediente.builder()
+                .id(id)
+                .expediente(expedienteVigente())
+                .tipoEntrada(tipo)
+                .usuario(usuarioConRol(TipoRol.DOCENTE))
+                .fecha(fecha)
+                .titulo(titulo)
+                .descripcion(descripcion)
+                .build();
+    }
+
+    @Test
+    void exportarCsvDebeNegarAccesoADocenteNoAsignado() {
+        // La regla de visibilidad por rol del listar debe aplicar igual al export:
+        // un docente que no es responsable del alumno no puede exportar su bitacora.
+        when(alumnoRepository.existsById(ALUMNO_ID)).thenReturn(true);
+        stubUsuarioActualConRol(TipoRol.DOCENTE);
+        when(alumnoRepository.existsByIdAndDocentesId(ALUMNO_ID, USUARIO_ID)).thenReturn(false);
+
+        assertThatThrownBy(() -> bitacoraService.exportarCsv(ALUMNO_ID, null, null, null))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void exportarCsvSinExpedienteVigenteDevuelveSoloCabecera() {
+        stubAccesoDocenteAsignado();
+        stubSinExpedienteVigente();
+
+        String csv = bitacoraService.exportarCsv(ALUMNO_ID, null, null, null);
+
+        assertThat(csv).isEqualTo(
+                "id,fecha,tipo,autor,rol_autor,titulo,contenido,"
+                        + "entrada_raiz_id,evento_id,archivos_adjuntos_count\r\n");
+    }
+
+    @Test
+    void exportarCsvDevuelveCabeceraExactaConDiezColumnas() {
+        stubAccesoDocenteAsignado();
+        stubExpedienteVigente();
+        when(entradaRepository.findAll(any(Specification.class), any(Sort.class)))
+                .thenReturn(List.of());
+
+        String csv = bitacoraService.exportarCsv(ALUMNO_ID, null, null, null);
+
+        String primeraLinea = csv.split("\r\n", -1)[0];
+        assertThat(primeraLinea.split(",", -1)).containsExactly(
+                "id", "fecha", "tipo", "autor", "rol_autor",
+                "titulo", "contenido", "entrada_raiz_id", "evento_id",
+                "archivos_adjuntos_count");
+    }
+
+    @Test
+    void exportarCsvAplicaFiltrosDeTipoYFechaConSortAscendente() {
+        // El export reutiliza la misma Specification que listar, pero ordena
+        // ASC por fecha (cronologico) para facilitar la lectura del archivo.
+        stubAccesoDocenteAsignado();
+        stubExpedienteVigente();
+        when(entradaRepository.findAll(any(Specification.class), any(Sort.class)))
+                .thenReturn(List.of());
+
+        bitacoraService.exportarCsv(
+                ALUMNO_ID,
+                TipoEntrada.OBSERVACION_PEDAGOGICA,
+                LocalDateTime.of(2026, 1, 1, 0, 0),
+                LocalDateTime.of(2026, 12, 31, 23, 59));
+
+        verify(entradaRepository).findAll(any(Specification.class),
+                eq(Sort.by(Sort.Direction.ASC, "fecha")));
+    }
+
+    @Test
+    void exportarCsvEscapaComasComillasYSaltosDeLineaSegunRFC4180() {
+        stubAccesoDocenteAsignado();
+        stubExpedienteVigente();
+
+        // Descripcion con los tres caracteres especiales del CSV (coma,
+        // comilla doble y salto de linea): debe quedar envuelta en comillas,
+        // con las comillas internas dobladas, segun RFC 4180.
+        EntradaExpediente entrada = entradaParaExport(
+                1L, TipoEntrada.OBSERVACION_PEDAGOGICA,
+                LocalDateTime.of(2026, 6, 1, 10, 30, 0),
+                "Titulo simple",
+                "Sofia dijo: \"hola, mundo\"\nlinea dos");
+        when(entradaRepository.findAll(any(Specification.class), any(Sort.class)))
+                .thenReturn(List.of(entrada));
+
+        String csv = bitacoraService.exportarCsv(ALUMNO_ID, null, null, null);
+
+        // El campo escapado: "Sofia dijo: ""hola, mundo""\nlinea dos"
+        assertThat(csv).contains("\"Sofia dijo: \"\"hola, mundo\"\"\nlinea dos\"");
+    }
+
+    @Test
+    void exportarCsvIncluyeTituloYConteoAdjuntosEnLaFila() {
+        stubAccesoDocenteAsignado();
+        stubExpedienteVigente();
+
+        EntradaExpediente entrada = entradaParaExport(
+                42L, TipoEntrada.OBSERVACION_PEDAGOGICA,
+                LocalDateTime.of(2026, 6, 1, 10, 30, 0),
+                "Avance lectura",
+                "Leyo 8 palabras");
+        entrada.setEntradaRaiz(null);
+        entrada.setEvento(Evento.builder().id(7L).build());
+
+        when(entradaRepository.findAll(any(Specification.class), any(Sort.class)))
+                .thenReturn(List.of(entrada));
+        when(entradaArchivoRepository.contarPorEntradaIds(List.of(42L)))
+                .thenReturn(Collections.singletonList(new Object[]{42L, 3L}));
+
+        String csv = bitacoraService.exportarCsv(ALUMNO_ID, null, null, null);
+
+        String[] lineas = csv.split("\r\n", -1);
+        assertThat(lineas[1]).isEqualTo(
+                "42,2026-06-01 10:30:00,OBSERVACION_PEDAGOGICA,"
+                        + "María Torres,DOCENTE,"
+                        + "Avance lectura,Leyo 8 palabras,,7,3");
+    }
+
+    @Test
+    void exportarCsvEscribeEntradasEnElOrdenDevueltoPorElRepository() {
+        // Validamos que el service emite las filas en el orden recibido;
+        // el orden cronologico (ASC) ya esta cubierto por el test de Sort.
+        stubAccesoDocenteAsignado();
+        stubExpedienteVigente();
+
+        EntradaExpediente e1 = entradaParaExport(
+                1L, TipoEntrada.OBSERVACION_PEDAGOGICA,
+                LocalDateTime.of(2026, 1, 5, 9, 0, 0),
+                "Primera", "uno");
+        EntradaExpediente e2 = entradaParaExport(
+                2L, TipoEntrada.OBSERVACION_PEDAGOGICA,
+                LocalDateTime.of(2026, 6, 1, 9, 0, 0),
+                "Segunda", "dos");
+        when(entradaRepository.findAll(any(Specification.class), any(Sort.class)))
+                .thenReturn(List.of(e1, e2));
+
+        String csv = bitacoraService.exportarCsv(ALUMNO_ID, null, null, null);
+
+        String[] lineas = csv.split("\r\n", -1);
+        assertThat(lineas[1]).startsWith("1,2026-01-05 09:00:00,");
+        assertThat(lineas[2]).startsWith("2,2026-06-01 09:00:00,");
     }
 }

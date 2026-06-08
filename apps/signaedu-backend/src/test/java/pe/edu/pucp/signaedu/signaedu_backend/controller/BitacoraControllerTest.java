@@ -22,12 +22,15 @@ import pe.edu.pucp.signaedu.signaedu_backend.service.BitacoraService;
 
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -156,6 +159,55 @@ class BitacoraControllerTest {
                 .andExpect(status().isOk());
 
         verify(bitacoraService).listar(
+                eq(1L), eq(TipoEntrada.OBSERVACION_PEDAGOGICA), any(), any());
+    }
+
+    // ---------- GET /alumnos/{id}/bitacora/export (Fase 5) ----------
+
+    @Test
+    @WithMockUser(authorities = {"EXPEDIENTE_EXPORTAR"})
+    void exportDebeRetornarCsvConPermisoExportar() throws Exception {
+        String csvBody = "id,fecha,tipo,autor,rol_autor,titulo,contenido,"
+                + "entrada_raiz_id,evento_id,archivos_adjuntos_count\r\n";
+        when(bitacoraService.exportarCsv(eq(1L), any(), any(), any()))
+                .thenReturn(csvBody);
+
+        var resultado = mockMvc.perform(get("/alumnos/1/bitacora/export"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith("text/csv"))
+                .andExpect(header().string("Content-Disposition",
+                        org.hamcrest.Matchers.containsString("attachment")))
+                .andExpect(header().string("Content-Disposition",
+                        org.hamcrest.Matchers.containsString("bitacora_alumno_1_")))
+                .andReturn();
+
+        assertThat(resultado.getResponse().getContentAsString())
+                .isEqualTo(csvBody);
+    }
+
+    @Test
+    @WithMockUser(authorities = {"BITACORA_LEER"})
+    void exportDebeRechazarSinPermisoExportar() throws Exception {
+        // BITACORA_LEER (lo tiene SAANEE) NO incluye EXPEDIENTE_EXPORTAR:
+        // segun PERMISOS_RBAC, exportar es solo DOCENTE y PADRE.
+        mockMvc.perform(get("/alumnos/1/bitacora/export"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(authorities = {"EXPEDIENTE_EXPORTAR"})
+    void exportDebePasarFiltrosDeQueryParamAlService() throws Exception {
+        when(bitacoraService.exportarCsv(
+                eq(1L), eq(TipoEntrada.OBSERVACION_PEDAGOGICA), any(), any()))
+                .thenReturn("");
+
+        mockMvc.perform(get("/alumnos/1/bitacora/export")
+                        .param("tipo", "OBSERVACION_PEDAGOGICA")
+                        .param("desde", "2026-01-01T00:00:00")
+                        .param("hasta", "2026-12-31T23:59:00"))
+                .andExpect(status().isOk());
+
+        verify(bitacoraService).exportarCsv(
                 eq(1L), eq(TipoEntrada.OBSERVACION_PEDAGOGICA), any(), any());
     }
 }
