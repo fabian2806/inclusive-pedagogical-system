@@ -1,4 +1,4 @@
-import { ArrowLeft, Calendar, Plus, User } from "lucide-react"
+import { ArrowLeft, User } from "lucide-react"
 import { Link } from "react-router-dom"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -43,14 +43,6 @@ export function ExpedienteHeader({ alumno }: Props) {
             Ver perfil
           </Button>
         </Link>
-        <Button variant="outline" className="gap-2 border-[#E5E7EB] text-[#374151]">
-          <Calendar size={16} />
-          Programar evento
-        </Button>
-        <Button className="gap-2 bg-[#1E3A5F] hover:bg-[#2D4A6F] text-white">
-          <Plus size={16} />
-          Nueva entrada
-        </Button>
       </div>
     </div>
   )
