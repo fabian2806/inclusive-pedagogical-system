@@ -24,7 +24,7 @@ const menuConfig: Record<UserRole, MenuItem[]> = {
         { title: "Inicio", url: "/dashboard", icon: LayoutDashboard },
         { title: "Usuarios", url: "/dashboard/admin/usuarios", icon: UserCog },
         { title: "Estudiantes", url: "/dashboard/admin/estudiantes", icon: Users },
-        { title: "Tipos Documento", url: "/dashboard/admin/tipos-documento", icon: FolderCog },
+        { title: "Tipos de Documento", url: "/dashboard/admin/tipos-documento", icon: FolderCog },
         { title: "Configuración", url: "/dashboard/admin/configuracion", icon: Settings },
     ],
     docente: [

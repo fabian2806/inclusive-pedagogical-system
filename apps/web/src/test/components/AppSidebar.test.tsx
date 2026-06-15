@@ -24,12 +24,12 @@ function renderSidebar(rol: UserRole) {
 
 describe('AppSidebar', () => {
   describe('rol admin', () => {
-    it('muestra Inicio, Usuarios, Estudiantes, Tipos Documento, Configuración', () => {
+    it('muestra Inicio, Usuarios, Estudiantes, Tipos de Documento, Configuración', () => {
       renderSidebar('admin')
       expect(screen.getByText('Inicio')).toBeInTheDocument()
       expect(screen.getByText('Usuarios')).toBeInTheDocument()
       expect(screen.getByText('Estudiantes')).toBeInTheDocument()
-      expect(screen.getByText('Tipos Documento')).toBeInTheDocument()
+      expect(screen.getByText('Tipos de Documento')).toBeInTheDocument()
       expect(screen.getByText('Configuración')).toBeInTheDocument()
     })
 
@@ -67,7 +67,7 @@ describe('AppSidebar', () => {
     it('no muestra items administrativos', () => {
       renderSidebar('docente')
       expect(screen.queryByText('Usuarios')).not.toBeInTheDocument()
-      expect(screen.queryByText('Tipos Documento')).not.toBeInTheDocument()
+      expect(screen.queryByText('Tipos de Documento')).not.toBeInTheDocument()
       expect(screen.queryByText('Configuración')).not.toBeInTheDocument()
     })
   })
