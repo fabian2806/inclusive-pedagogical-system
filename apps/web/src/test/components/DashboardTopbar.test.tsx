@@ -36,16 +36,37 @@ function notif(id: number, opts: { leida?: boolean } = {}): NotificacionResponse
   }
 }
 
-function render(rol: User['rol']) {
+function render(rol: User['rol'], route = '/dashboard') {
   return renderWithProviders(
     <SidebarProvider>
       <DashboardTopbar />
     </SidebarProvider>,
-    { user: usuario(rol), route: '/dashboard' },
+    { user: usuario(rol), route },
   )
 }
 
 describe('DashboardTopbar', () => {
+  describe('título de sección', () => {
+    // Usamos rol admin: el título no depende del rol y admin no monta la
+    // campanita (sin fetch async), lo que mantiene estos tests sin warnings de act().
+    it('muestra "Inicio" en /dashboard', () => {
+      render('admin', '/dashboard')
+      expect(screen.getByRole('heading', { name: 'Inicio' })).toBeInTheDocument()
+    })
+
+    it('muestra "Estudiantes" en una ruta de estudiantes', () => {
+      render('admin', '/dashboard/admin/estudiantes/5')
+      expect(screen.getByRole('heading', { name: 'Estudiantes' })).toBeInTheDocument()
+    })
+
+    it('muestra "Tipos de Documento" en la ruta admin de tipos de documento', () => {
+      render('admin', '/dashboard/admin/tipos-documento')
+      expect(
+        screen.getByRole('heading', { name: 'Tipos de Documento' }),
+      ).toBeInTheDocument()
+    })
+  })
+
   it('admin: NO renderiza el icono de campanita', () => {
     render('admin')
 

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { SidebarTrigger } from '@/components/ui/sidebar'
-import { Bell, Calendar as CalendarIcon, FileText, Loader2, Search } from 'lucide-react'
-import { Input } from '@/components/ui/input'
+import { Bell, Calendar as CalendarIcon, FileText, Loader2 } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,8 +14,31 @@ import { useAuth } from '@/hooks/useAuth'
 import { notificacionesService } from '@/lib/api'
 import type { NotificacionResponse, TipoNotificacion } from '@/types/api'
 
+// Mapa de prefijos de ruta → título de sección. Se evalúa del más específico
+// al más general (el primero que matchea gana), por eso "/dashboard" va al final
+// como fallback. Sustituye al search bar mock que vivía en el navbar.
+const SECTION_TITLES: ReadonlyArray<readonly [string, string]> = [
+  ['/dashboard/admin/usuarios', 'Usuarios'],
+  ['/dashboard/admin/estudiantes', 'Estudiantes'],
+  ['/dashboard/admin/tipos-documento', 'Tipos de Documento'],
+  ['/dashboard/admin/configuracion', 'Configuración'],
+  ['/dashboard/estudiantes', 'Estudiantes'],
+  ['/dashboard/indicadores', 'Indicadores'],
+  ['/dashboard/eventos', 'Eventos'],
+  ['/dashboard', 'Inicio'],
+]
+
+function sectionTitle(pathname: string): string {
+  const match = SECTION_TITLES.find(
+    ([prefix]) => pathname === prefix || pathname.startsWith(prefix + '/'),
+  )
+  return match ? match[1] : 'SignaEdu'
+}
+
 export function DashboardTopbar() {
   const { user } = useAuth()
+  const { pathname } = useLocation()
+  const titulo = sectionTitle(pathname)
 
   const [currentDate, setCurrentDate] = useState<string>('')
   useEffect(() => {
@@ -32,14 +55,8 @@ export function DashboardTopbar() {
     <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b border-[#E5E7EB] bg-white px-4">
       <SidebarTrigger className="text-[#6B7280] hover:text-[#1E3A5F]" />
 
-      {/* Busqueda: mock visual; sin funcionalidad backend. */}
-      <div className="relative flex-1 max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#9CA3AF]" />
-        <Input
-          placeholder="Buscar..."
-          className="pl-9 h-9 bg-[#F9FAFB] border-[#E5E7EB] text-sm focus-visible:ring-[#3B82F6]"
-        />
-      </div>
+      {/* Título de la sección actual (reemplaza el search bar mock). */}
+      <h1 className="flex-1 text-base font-semibold text-[#1E3A5F] truncate">{titulo}</h1>
 
       {/* Notificaciones: solo visibles para docente / padre / SAANEE.
           Admin no tiene NOTIFICACION_LEER en RBAC; ocultar evita 403. */}
