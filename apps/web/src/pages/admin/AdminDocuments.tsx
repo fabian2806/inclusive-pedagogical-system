@@ -8,6 +8,7 @@ import { DocumentsTable } from "@/components/admin/documents/DocumentsTable"
 import { DocumentsFormDialog } from "@/components/admin/documents/DocumentsFormDialog"
 import { tiposDocumentoService } from "@/lib/api"
 import { useApiQuery } from "@/hooks/useApiQuery"
+import { toast } from "@/lib/toast"
 import { AxiosError } from "axios"
 
 const emptyFormData: TipoDocumentoFormData = {
@@ -83,6 +84,7 @@ export default function AdminDocuments() {
         await tiposDocumentoService.crear(request)
       }
 
+      toast.success(editingTipo ? "Tipo de documento actualizado" : "Tipo de documento creado")
       setIsDialogOpen(false)
       setFormData(emptyFormData)
       refetch()
@@ -100,9 +102,11 @@ export default function AdminDocuments() {
   const handleDelete = async (id: number) => {
     try {
       await tiposDocumentoService.eliminar(id)
+      toast.success("Tipo de documento eliminado")
       refetch()
     } catch (err) {
       console.error("Error al eliminar tipo de documento:", err)
+      toast.error("No se pudo eliminar el tipo de documento")
     }
   }
 

@@ -10,6 +10,7 @@ import type { User, UserFormData } from "@/types/user"
 import type { TipoRol } from "@/types/api"
 import { usuariosService } from "@/lib/api"
 import { useApiQuery } from "@/hooks/useApiQuery"
+import { toast } from "@/lib/toast"
 import { AxiosError } from "axios"
 
 const emptyUser: UserFormData = {
@@ -91,6 +92,7 @@ export default function UsuariosPage() {
                     rol: formData.rol,
                 })
             }
+            toast.success(editingUser ? "Usuario actualizado" : "Usuario creado")
             setIsDialogOpen(false)
             setFormData(emptyUser)
             refetch()
@@ -108,9 +110,11 @@ export default function UsuariosPage() {
     const handleDesactivar = async (userId: number) => {
         try {
             await usuariosService.desactivar(userId)
+            toast.success("Usuario desactivado")
             refetch()
         } catch (err) {
             console.error("Error al desactivar usuario:", err)
+            toast.error("No se pudo desactivar el usuario")
         }
     }
 

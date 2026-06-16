@@ -10,6 +10,7 @@ import { StudentsTable } from "@/components/admin/students/StudentsTable"
 import { StudentFormDialog } from "@/components/admin/students/StudentsFormDialog"
 import { alumnosService, usuariosService } from "@/lib/api"
 import { useApiQuery } from "@/hooks/useApiQuery"
+import { toast } from "@/lib/toast"
 import { AxiosError } from "axios"
 
 const grades = ["1° Primaria", "2° Primaria", "3° Primaria", "4° Primaria", "5° Primaria", "6° Primaria"]
@@ -148,6 +149,7 @@ export function AdminStudents() {
                 }
             }
 
+            toast.success(editingStudent ? "Estudiante actualizado" : "Estudiante creado")
             setIsDialogOpen(false)
             setFormData(emptyStudent)
             refetch()
@@ -165,9 +167,11 @@ export function AdminStudents() {
     const handleDesactivar = async (studentId: number) => {
         try {
             await alumnosService.desactivar(studentId)
+            toast.success("Estudiante desactivado")
             refetch()
         } catch (err) {
             console.error("Error al desactivar estudiante:", err)
+            toast.error("No se pudo desactivar el estudiante")
         }
     }
 
