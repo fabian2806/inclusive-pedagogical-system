@@ -13,6 +13,7 @@ import {
   contactosService,
   eventosService,
 } from '@/lib/api'
+import { toast } from '@/lib/toast'
 import type {
   AlumnoResponse,
   ContactoResponse,
@@ -176,6 +177,7 @@ export function NuevoEventoDialog({ open, onClose, onCreated }: NuevoEventoDialo
         invitadosUsuarioIds,
       })
 
+      toast.success('Evento creado')
       onCreated()
       onClose()
     } catch (err) {

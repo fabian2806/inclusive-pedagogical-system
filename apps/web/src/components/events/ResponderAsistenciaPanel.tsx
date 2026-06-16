@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { eventosService } from '@/lib/api'
+import { toast } from '@/lib/toast'
 import type {
   ErrorResponse,
   EventoResponse,
@@ -65,6 +66,11 @@ export function ResponderAsistenciaPanel({
         estadoAsistencia,
         motivoRechazo: motivoRechazo ?? null,
       })
+      toast.success(
+        estadoAsistencia === 'CONFIRMADO'
+          ? 'Asistencia confirmada'
+          : 'Invitación rechazada',
+      )
       setRechazoOpen(false)
       onResponded()
     } catch (err) {

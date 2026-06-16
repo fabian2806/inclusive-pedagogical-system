@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { eventosService } from '@/lib/api'
+import { toast } from '@/lib/toast'
 import type {
   ErrorResponse,
   EventoResponse,
@@ -95,6 +96,7 @@ export function EditarEventoDialog({
         modalidad: form.modalidad,
         ubicacion: form.ubicacion.trim() || null,
       })
+      toast.success('Evento actualizado')
       onSaved()
     } catch (err) {
       if (err instanceof AxiosError) {

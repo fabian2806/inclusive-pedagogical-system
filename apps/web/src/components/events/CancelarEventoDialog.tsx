@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { eventosService } from '@/lib/api'
+import { toast } from '@/lib/toast'
 import type { ErrorResponse } from '@/types/api'
 
 interface CancelarEventoDialogProps {
@@ -35,6 +36,7 @@ export function CancelarEventoDialog({
       await eventosService.cancelar(eventoId, {
         motivoCancelacion: motivo.trim() || null,
       })
+      toast.success('Evento cancelado')
       onCanceled()
     } catch (err) {
       if (err instanceof AxiosError) {

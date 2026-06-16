@@ -3,6 +3,7 @@ import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ResponderAsistenciaPanel } from '@/components/events/ResponderAsistenciaPanel'
 import { eventosService } from '@/lib/api'
+import { toast } from '@/lib/toast'
 import { renderWithProviders } from '../../helpers/renderWithProviders'
 import type {
   EventoResponse,
@@ -12,8 +13,12 @@ import type {
 } from '@/types/api'
 
 vi.mock('@/lib/api/eventosService')
+vi.mock('@/lib/toast', () => ({
+  toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
+}))
 
 const mockedEventos = vi.mocked(eventosService)
+const mockedToast = vi.mocked(toast)
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -127,6 +132,19 @@ describe('ResponderAsistenciaPanel', () => {
       )
     })
     expect(onResponded).toHaveBeenCalledOnce()
+  })
+
+  it('Confirmar exitoso dispara toast.success de asistencia confirmada', async () => {
+    const user = userEvent.setup()
+    mockedEventos.responder.mockResolvedValue(eventoFake())
+
+    render({ invitado: invitadoFake('PENDIENTE') })
+
+    await user.click(screen.getByRole('button', { name: /Confirmar asistencia/i }))
+
+    await waitFor(() => {
+      expect(mockedToast.success).toHaveBeenCalledWith('Asistencia confirmada')
+    })
   })
 
   it('Rechazar abre sub-dialog con opciones de motivo', async () => {

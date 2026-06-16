@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { eventosService } from '@/lib/api'
+import { toast } from '@/lib/toast'
 import {
   ACCEPT_EXTENSIONS,
   ACCEPT_HINT,
@@ -85,6 +86,7 @@ export function RegistrarResultadoDialog({
         },
         archivos.length > 0 ? archivos : undefined,
       )
+      toast.success('Resultado registrado')
       reset()
       onRegistered()
     } catch (err) {
