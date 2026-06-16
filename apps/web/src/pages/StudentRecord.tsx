@@ -31,6 +31,7 @@ import { ProximosEventosCard } from "@/components/record/ProximosEventosCard"
 import { BitacoraSection } from "@/components/record/BitacoraSection"
 import type { EntryFormState } from "@/components/record/BitacoraEntryForm"
 import { DocumentosSection } from "@/components/record/DocumentosSection"
+import { toast } from "@/lib/toast"
 import { AxiosError } from "axios"
 
 export default function StudentRecord() {
@@ -181,6 +182,9 @@ export default function StudentRecord() {
         setError(
           `Entrada publicada, pero fallaron estos archivos: ${fallosArchivos.join(", ")}`,
         )
+        toast.warning("Entrada publicada, pero algunos archivos no se subieron")
+      } else {
+        toast.success("Entrada publicada")
       }
 
       setEntryForm({
@@ -224,6 +228,7 @@ export default function StudentRecord() {
       link.click()
       link.remove()
       URL.revokeObjectURL(url)
+      toast.success("Bitácora exportada")
     } catch (err) {
       if (err instanceof AxiosError) {
         setError(err.response?.data?.mensaje ?? err.message)
@@ -249,6 +254,7 @@ export default function StudentRecord() {
         descripcion: replyText,
         entradaRaizId: Number(entryId),
       })
+      toast.success("Respuesta publicada")
       setReplyText("")
       setReplyingTo(null)
       await cargar()

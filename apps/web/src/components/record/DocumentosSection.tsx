@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { documentosExpedienteService, tiposDocumentoService } from "@/lib/api"
 import { useApiQuery } from "@/hooks/useApiQuery"
+import { toast } from "@/lib/toast"
 import {
   UploadDocumentModal,
   type UploadDocumentPayload,
@@ -147,6 +148,7 @@ export function DocumentosSection({ alumnoId, studentName }: Props) {
         },
         payload.file,
       )
+      toast.success("Documento subido")
       refetch()
     } catch (err) {
       if (err instanceof AxiosError) {
