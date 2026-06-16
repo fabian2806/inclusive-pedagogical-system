@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom'
+import { Toaster } from 'sonner'
 import Home from '@/pages/Home'
 import Login from '@/pages/Login'
 import { AuthProvider } from '@/contexts/AuthContext'
@@ -19,6 +20,7 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <Toaster richColors closeButton position="top-right" />
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
