@@ -1,11 +1,21 @@
 import { Link, useNavigate } from "react-router-dom"
-import { Eye, EyeOff, ArrowLeft, GraduationCap, Users, ClipboardCheck, Shield } from "lucide-react"
+import { Eye, EyeOff, ArrowLeft, GraduationCap, Users, ClipboardCheck, KeyRound, Mail, Phone, Copy, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter,
+} from "@/components/ui/dialog"
 import { useState } from "react"
 import { useAuth } from "@/hooks/useAuth"
+import { configuracionService } from "@/lib/api/configuracionService"
+import type { ContactoAdminResponse } from "@/types/api"
 
 export default function Login() {
 
@@ -19,6 +29,62 @@ export default function Login() {
     const [password, setPassword] = useState("")
     const [error, setError] = useState("")
     const [loading, setLoading] = useState(false)
+
+    // Modales de ayuda (olvidé contraseña / contacto)
+    const [forgotOpen, setForgotOpen] = useState(false)
+    const [contactOpen, setContactOpen] = useState(false)
+    const [forgotEmail, setForgotEmail] = useState("")
+    const [contacto, setContacto] = useState<ContactoAdminResponse | null>(null)
+    const [contactoLoading, setContactoLoading] = useState(false)
+    const [copiado, setCopiado] = useState(false)
+
+    // Fallback si aún no se ha cargado o falla la consulta del contacto.
+    const adminCorreo = contacto?.correo?.trim() || "admin@signaedu.pe"
+    const adminTelefono = contacto?.telefono?.trim() || ""
+
+    // Carga perezosa: se pide el contacto solo al abrir un modal, una sola vez.
+    const cargarContacto = async () => {
+        if (contacto || contactoLoading) return
+        setContactoLoading(true)
+        try {
+            const data = await configuracionService.obtenerContactoAdmin()
+            setContacto(data)
+        } catch {
+            // Si falla, se mantiene el fallback de adminCorreo.
+        } finally {
+            setContactoLoading(false)
+        }
+    }
+
+    const abrirOlvideContrasena = () => {
+        setForgotEmail(email)
+        cargarContacto()
+        setForgotOpen(true)
+    }
+
+    const abrirContacto = () => {
+        cargarContacto()
+        setContactOpen(true)
+    }
+
+    const enviarSolicitudReset = () => {
+        const asunto = encodeURIComponent("Solicitud de restablecimiento de contraseña")
+        const cuerpo = encodeURIComponent(
+            `Hola,\n\nSolicito el restablecimiento de la contraseña de mi cuenta en SignaEdu.\n\n` +
+            `Correo de la cuenta: ${forgotEmail || "(indica tu correo)"}\n\nGracias.`
+        )
+        window.location.href = `mailto:${adminCorreo}?subject=${asunto}&body=${cuerpo}`
+    }
+
+    const copiarCorreo = async () => {
+        try {
+            await navigator.clipboard.writeText(adminCorreo)
+            setCopiado(true)
+            setTimeout(() => setCopiado(false), 2000)
+        } catch {
+            // El navegador puede bloquear el portapapeles; no es crítico.
+        }
+    }
 
     const features = [
         "Expediente digital del estudiante",
@@ -199,9 +265,13 @@ export default function Login() {
                                     Recordarme
                                 </Label>
                             </div>
-                            <Link to="#" className="text-sm text-[#3B82F6] hover:text-[#2563EB] font-medium transition-colors">
+                            <button
+                                type="button"
+                                onClick={abrirOlvideContrasena}
+                                className="text-sm text-[#3B82F6] hover:text-[#2563EB] font-medium transition-colors"
+                            >
                                 ¿Olvidaste tu contraseña?
-                            </Link>
+                            </button>
                         </div>
 
                         <Button
@@ -242,12 +312,144 @@ export default function Login() {
                     {/* Texto de apoyo (quizá solo considerar mensaje de contactar al admin. A evaluar) */}
                     <p className="mt-8 text-center text-sm text-[#9CA3AF]">
                         ¿Necesitas ayuda?{" "}
-                        <Link to="#" className="text-[#3B82F6] hover:text-[#2563EB] font-medium transition-colors">
+                        <button
+                            type="button"
+                            onClick={abrirContacto}
+                            className="text-[#3B82F6] hover:text-[#2563EB] font-medium transition-colors"
+                        >
                             Contacta al administrador
-                        </Link>
+                        </button>
                     </p>
                 </div>
             </div>
+
+            {/* Modal: ¿Olvidaste tu contraseña? */}
+            <Dialog open={forgotOpen} onOpenChange={setForgotOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-[#1E3A5F]">
+                            <KeyRound size={18} className="text-[#3B82F6]" />
+                            Restablecer contraseña
+                        </DialogTitle>
+                        <DialogDescription>
+                            Por seguridad, el restablecimiento lo gestiona el administrador. Indica el correo
+                            de tu cuenta y se abrirá tu aplicación de correo con la solicitud lista para enviar.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-2 py-1">
+                        <Label htmlFor="forgot-email" className="text-sm font-medium text-[#374151]">
+                            Correo de tu cuenta
+                        </Label>
+                        <Input
+                            id="forgot-email"
+                            type="email"
+                            placeholder="usuario@ejemplo.com"
+                            value={forgotEmail}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForgotEmail(e.target.value)}
+                            className="h-11 border-[#D1D5DB] focus:border-[#3B82F6] focus:ring-[#3B82F6]"
+                        />
+                        <p className="text-xs text-[#9CA3AF]">
+                            Se enviará a{" "}
+                            <span className="font-medium text-[#6B7280]">{adminCorreo}</span>.
+                        </p>
+                    </div>
+
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setForgotOpen(false)}
+                            className="border-[#E5E7EB] text-[#374151]"
+                        >
+                            Cancelar
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={enviarSolicitudReset}
+                            disabled={!forgotEmail}
+                            className="bg-[#1E3A5F] hover:bg-[#2D4A6F] text-white gap-2"
+                        >
+                            <Mail size={16} />
+                            Enviar solicitud
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Modal: Contacta al administrador */}
+            <Dialog open={contactOpen} onOpenChange={setContactOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-[#1E3A5F]">
+                            <Users size={18} className="text-[#3B82F6]" />
+                            Contacta al administrador
+                        </DialogTitle>
+                        <DialogDescription>
+                            Si tienes problemas para acceder o necesitas una cuenta, comunícate con el
+                            administrador del sistema.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-3 py-1">
+                        {/* Correo */}
+                        <div className="flex items-center justify-between gap-3 p-3 rounded-lg border border-[#E5E7EB] bg-[#F9FAFB]">
+                            <div className="flex items-center gap-3 min-w-0">
+                                <div className="p-2 rounded-lg bg-[#EFF6FF] shrink-0">
+                                    <Mail size={16} className="text-[#3B82F6]" />
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="text-xs text-[#9CA3AF]">Correo</p>
+                                    <p className="text-sm font-medium text-[#1E3A5F] truncate">
+                                        {contactoLoading ? "Cargando..." : adminCorreo}
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={copiarCorreo}
+                                className="shrink-0 inline-flex items-center gap-1 text-xs font-medium text-[#3B82F6] hover:text-[#2563EB] transition-colors"
+                                aria-label="Copiar correo"
+                            >
+                                {copiado ? <Check size={14} /> : <Copy size={14} />}
+                                {copiado ? "Copiado" : "Copiar"}
+                            </button>
+                        </div>
+
+                        {/* Teléfono (solo si está configurado) */}
+                        {adminTelefono && (
+                            <div className="flex items-center gap-3 p-3 rounded-lg border border-[#E5E7EB] bg-[#F9FAFB]">
+                                <div className="p-2 rounded-lg bg-[#ECFDF5] shrink-0">
+                                    <Phone size={16} className="text-[#059669]" />
+                                </div>
+                                <div>
+                                    <p className="text-xs text-[#9CA3AF]">Teléfono</p>
+                                    <p className="text-sm font-medium text-[#1E3A5F]">{adminTelefono}</p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setContactOpen(false)}
+                            className="border-[#E5E7EB] text-[#374151]"
+                        >
+                            Cerrar
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={() => { window.location.href = `mailto:${adminCorreo}` }}
+                            className="bg-[#1E3A5F] hover:bg-[#2D4A6F] text-white gap-2"
+                        >
+                            <Mail size={16} />
+                            Escribir correo
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }
