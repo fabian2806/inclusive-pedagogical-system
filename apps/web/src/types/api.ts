@@ -349,6 +349,16 @@ export interface CierrePeriodoResponse {
   expedientesCerrados: number
 }
 
+export interface ContactoAdminResponse {
+  correo: string
+  telefono: string
+}
+
+export interface ContactoAdminRequest {
+  correo: string
+  telefono?: string
+}
+
 // --- Dashboard (Fase 3) ---
 
 export interface AdminDashboardResponse {
