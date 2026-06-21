@@ -113,7 +113,6 @@ export default function Login() {
             setLoading(false)
         }   
 
-        console.log("El email y password son:", { email, password })
     }
 
     return (
