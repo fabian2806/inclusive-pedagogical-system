@@ -10,6 +10,7 @@ import {
   BookOpen,
   Users,
   AlertTriangle,
+  Mail,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -48,8 +49,10 @@ export default function AdminConfig() {
   // Cargar periodo vigente y alumnos activos
   const fetchPeriodo = useCallback(() => configuracionService.obtenerPeriodoVigente(), [])
   const fetchAlumnos = useCallback(() => alumnosService.listar(), [])
+  const fetchContacto = useCallback(() => configuracionService.obtenerContactoAdmin(), [])
   const { data: periodoData, isLoading: loadingPeriodo, refetch: refetchPeriodo } = useApiQuery(fetchPeriodo)
   const { data: alumnos, isLoading: loadingAlumnos } = useApiQuery(fetchAlumnos)
+  const { data: contactoData, isLoading: loadingContacto, refetch: refetchContacto } = useApiQuery(fetchContacto)
 
   const alumnosActivos = alumnos?.filter(a => a.estado === "ACTIVO").length ?? 0
 
@@ -66,12 +69,26 @@ export default function AdminConfig() {
   const [resultadoApertura, setResultadoApertura] = useState<number | null>(null)
   const [resultadoCierre, setResultadoCierre] = useState<number | null>(null)
 
+  // Contacto del administrador
+  const [correoInput, setCorreoInput] = useState("")
+  const [telefonoInput, setTelefonoInput] = useState("")
+  const [loadingSaveContacto, setLoadingSaveContacto] = useState(false)
+  const [savedContacto, setSavedContacto] = useState(false)
+
   // Sincronizar estado cuando se carga el periodo
   useEffect(() => {
     if (periodoData) {
       setPeriodoInput(periodoData.periodoLectivoVigente)
     }
   }, [periodoData])
+
+  // Sincronizar estado cuando se carga el contacto
+  useEffect(() => {
+    if (contactoData) {
+      setCorreoInput(contactoData.correo ?? "")
+      setTelefonoInput(contactoData.telefono ?? "")
+    }
+  }, [contactoData])
 
   const periodoVigente = periodoData?.periodoLectivoVigente ?? ""
   const periodoAbierto = periodoData?.periodoAbierto ?? false
@@ -98,6 +115,25 @@ export default function AdminConfig() {
       setErrorMessage(extraerError(err))
     } finally {
       setLoadingSave(false)
+    }
+  }
+
+  const handleGuardarContacto = async () => {
+    if (!correoInput) return
+    setLoadingSaveContacto(true)
+    setErrorMessage(null)
+    try {
+      await configuracionService.actualizarContactoAdmin({
+        correo: correoInput,
+        telefono: telefonoInput || undefined,
+      })
+      refetchContacto()
+      setSavedContacto(true)
+      setTimeout(() => setSavedContacto(false), 3000)
+    } catch (err) {
+      setErrorMessage(extraerError(err))
+    } finally {
+      setLoadingSaveContacto(false)
     }
   }
 
@@ -133,7 +169,7 @@ export default function AdminConfig() {
     }
   }
 
-  if (loadingPeriodo || loadingAlumnos) {
+  if (loadingPeriodo || loadingAlumnos || loadingContacto) {
     return (
       <div className="p-6 flex items-center justify-center">
         <p className="text-[#6B7280]">Cargando configuración...</p>
@@ -312,6 +348,66 @@ export default function AdminConfig() {
               </p>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Contacto del administrador */}
+      <Card className="border-[#E5E7EB]">
+        <CardHeader className="pb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-[#EFF6FF]">
+              <Mail size={18} className="text-[#3B82F6]" />
+            </div>
+            <div>
+              <CardTitle className="text-base text-[#1E3A5F]">Contacto del administrador</CardTitle>
+              <CardDescription className="text-xs mt-0.5">
+                Datos que se muestran en el login en "Olvidaste tu contrasena" y "Contacta al administrador"
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-sm text-[#374151]">Correo de contacto</Label>
+              <Input
+                type="email"
+                placeholder="admin@signaedu.pe"
+                value={correoInput}
+                onChange={(e) => setCorreoInput(e.target.value)}
+                className="border-[#E5E7EB] text-[#1E3A5F]"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm text-[#374151]">Telefono (opcional)</Label>
+              <Input
+                type="tel"
+                placeholder="Ej. +51 999 999 999"
+                value={telefonoInput}
+                onChange={(e) => setTelefonoInput(e.target.value)}
+                className="border-[#E5E7EB] text-[#1E3A5F]"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={handleGuardarContacto}
+              variant="outline"
+              className="gap-2 border-[#E5E7EB] text-[#374151] hover:bg-[#F3F4F6]"
+              disabled={loadingSaveContacto}
+            >
+              <Save size={15} />
+              {loadingSaveContacto ? "Guardando..." : "Guardar contacto"}
+            </Button>
+            {savedContacto && (
+              <span className="flex items-center gap-1 text-sm text-[#059669]">
+                <CheckCircle size={14} />
+                Guardado
+              </span>
+            )}
+          </div>
         </CardContent>
       </Card>
 
