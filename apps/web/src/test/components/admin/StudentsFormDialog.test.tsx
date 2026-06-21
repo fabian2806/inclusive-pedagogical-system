@@ -13,10 +13,10 @@ const filledForm: StudentFormData = {
 }
 
 const mockDocentes = [
-  { id: 1, nombre: 'María', apellido: 'Castro', correo: 'maria@test.com' },
+  { id: 1, nombre: 'María', apellido: 'Castro', correo: 'maria@test.com', telefono: null },
 ]
 const mockPadres = [
-  { id: 2, nombre: 'Elena', apellido: 'Pérez', correo: 'elena@test.com' },
+  { id: 2, nombre: 'Elena', apellido: 'Pérez', correo: 'elena@test.com', telefono: null },
 ]
 
 const defaultProps = {

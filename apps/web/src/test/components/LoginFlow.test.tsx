@@ -5,7 +5,7 @@ import { Routes, Route } from 'react-router-dom'
 import Login from '@/pages/Login'
 import { renderWithProviders } from '../helpers/renderWithProviders'
 
-function LoginTestApp({ login }: { login: (correo: string, password: string) => Promise<void> }) {
+function LoginTestApp(_props: { login: (correo: string, password: string) => Promise<void> }) {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
