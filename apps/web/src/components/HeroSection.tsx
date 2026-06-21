@@ -1,4 +1,5 @@
 import { ShieldCheck, CheckCircle2 } from "lucide-react"
+import heroStudent from "@/assets/hero-student.jpg"
 
 export function HeroSection() {
   return (
@@ -38,7 +39,7 @@ export function HeroSection() {
           <div className="relative hidden lg:block">
             <div className="relative rounded-2xl overflow-hidden shadow-lg border border-[#E5E7EB] aspect-4/3">
               <img
-                    src="/src/assets/hero-student.jpg"
+                    src={heroStudent}
                     alt="Docente y estudiante practicando lengua de señas"
                     className="absolute inset-0 w-full h-full object-cover"
                 />
