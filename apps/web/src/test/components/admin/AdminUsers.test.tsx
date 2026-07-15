@@ -41,7 +41,10 @@ function render() {
 
 describe('AdminUsers — toasts', () => {
   it('crear usuario exitoso dispara toast.success("Usuario creado")', async () => {
-    const user = userEvent.setup()
+    // delay: null quita el setTimeout que userEvent mete entre tecla y tecla.
+    // Son 4 campos y cada pulsacion re-renderiza el dialogo completo, asi que
+    // el test superaba los 5s de timeout cuando corre junto al resto de la suite.
+    const user = userEvent.setup({ delay: null })
     mockedUsuarios.crear.mockResolvedValue(userFake())
 
     render()
