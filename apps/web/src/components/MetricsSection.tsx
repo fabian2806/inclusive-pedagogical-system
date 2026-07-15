@@ -4,9 +4,9 @@ import { MetricCard } from "@/components/MetricCard"
 const stats = [
   {
     icon: Users,
-    value: "3",
+    value: "4",
     label: "Roles integrados",
-    sub: "Docente · Familia · SAANEE",
+    sub: "Admin · Docente · Familia · SAANEE",
   },
   {
     icon: Target,
