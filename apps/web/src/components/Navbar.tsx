@@ -6,14 +6,6 @@ import { Menu, X, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
-const navLinks = [
-  { label: "Inicio", href: "#inicio" },
-  { label: "Módulos", href: "#modulos" },
-  { label: "Beneficios", href: "#beneficios" },
-  { label: "Seguridad", href: "#seguridad" },
-  { label: "Contacto", href: "#contacto" },
-]
-
 export function Navbar() {
   const [open, setOpen] = useState(false)
 
@@ -36,20 +28,12 @@ export function Navbar() {
 
         {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-7">
-          {navLinks.map((link, i) => (
-            <Link
-              key={link.href}
-              to={link.href}
-              className={cn(
-                "text-sm font-medium transition-colors",
-                i === 0
-                  ? "text-[#1E3A5F] border-b-2 border-[#1E3A5F] pb-0.5"
-                  : "text-[#6B7280] hover:text-[#1E3A5F]"
-              )}
-            >
-              {link.label}
-            </Link>
-          ))}
+          <a
+            href="#inicio"
+            className="text-sm font-medium text-[#1E3A5F] border-b-2 border-[#1E3A5F] pb-0.5 transition-colors"
+          >
+            Inicio
+          </a>
         </nav>
 
         {/* CTA */}
@@ -82,16 +66,13 @@ export function Navbar() {
         open ? "max-h-72 py-3" : "max-h-0"
       )}>
         <nav className="flex flex-col px-6 gap-4">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              to={link.href}
-              className="text-sm font-medium text-[#6B7280] hover:text-[#1E3A5F] transition-colors"
-              onClick={() => setOpen(false)}
-            >
-              {link.label}
-            </Link>
-          ))}
+          <a
+            href="#inicio"
+            className="text-sm font-medium text-[#6B7280] hover:text-[#1E3A5F] transition-colors"
+            onClick={() => setOpen(false)}
+          >
+            Inicio
+          </a>
           <div className="pt-2 border-t border-[#E5E7EB]">
             <Link to="/login" onClick={() => setOpen(false)}>
               <Button variant="outline" size="sm" className="w-full gap-2 border-[#D1D5DB] text-[#1E3A5F]">
