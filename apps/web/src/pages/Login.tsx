@@ -3,7 +3,6 @@ import { Eye, EyeOff, ArrowLeft, GraduationCap, Users, ClipboardCheck, KeyRound,
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
 import {
     Dialog,
     DialogContent,
@@ -257,13 +256,7 @@ export default function Login() {
                             </div>
                         </div>
 
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <Checkbox id="remember" className="border-[#D1D5DB]" />
-                                <Label htmlFor="remember" className="text-sm text-[#6B7280] font-normal cursor-pointer">
-                                    Recordarme
-                                </Label>
-                            </div>
+                        <div className="flex items-center justify-end">
                             <button
                                 type="button"
                                 onClick={abrirOlvideContrasena}
