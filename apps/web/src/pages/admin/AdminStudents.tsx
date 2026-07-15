@@ -23,7 +23,7 @@ const emptyStudent: StudentFormData = {
     grado: "",
     seccion: "",
     docenteId: "",
-    padreId: "",
+    padreIds: [],
 }
 
 export function AdminStudents() {
@@ -83,7 +83,7 @@ export function AdminStudents() {
             grado: student.grado,
             seccion: student.seccion,
             docenteId: student.docentes[0] ? String(student.docentes[0].id) : "",
-            padreId: student.padres[0] ? String(student.padres[0].id) : "",
+            padreIds: student.padres.map((p) => p.id),
         })
         setSaveError(null)
         setIsDialogOpen(true)
@@ -116,17 +116,16 @@ export function AdminStudents() {
                     }
                 }
 
-                // Gestionar asignación de padre
-                const padreActualId = editingStudent.padres[0]?.id
-                const nuevoPadreId = formData.padreId ? Number(formData.padreId) : null
+                // Gestionar asignación de padres: un alumno puede tener varios apoderados,
+                // así que se comparan las listas y solo se aplica la diferencia.
+                const padresActuales = editingStudent.padres.map((p) => p.id)
+                const padresNuevos = formData.padreIds
 
-                if (padreActualId !== nuevoPadreId) {
-                    if (padreActualId) {
-                        await alumnosService.removerPadre(editingStudent.id, padreActualId)
-                    }
-                    if (nuevoPadreId) {
-                        await alumnosService.asignarPadre(editingStudent.id, nuevoPadreId)
-                    }
+                for (const padreId of padresActuales.filter((id) => !padresNuevos.includes(id))) {
+                    await alumnosService.removerPadre(editingStudent.id, padreId)
+                }
+                for (const padreId of padresNuevos.filter((id) => !padresActuales.includes(id))) {
+                    await alumnosService.asignarPadre(editingStudent.id, padreId)
                 }
             } else {
                 // Crear alumno
@@ -143,9 +142,9 @@ export function AdminStudents() {
                     await alumnosService.asignarDocente(nuevoAlumno.id, Number(formData.docenteId))
                 }
 
-                // Asignar padre si fue seleccionado
-                if (formData.padreId) {
-                    await alumnosService.asignarPadre(nuevoAlumno.id, Number(formData.padreId))
+                // Asignar los padres seleccionados
+                for (const padreId of formData.padreIds) {
+                    await alumnosService.asignarPadre(nuevoAlumno.id, padreId)
                 }
             }
 

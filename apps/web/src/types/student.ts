@@ -19,5 +19,5 @@ export interface StudentFormData {
   grado: string
   seccion: string
   docenteId: string
-  padreId: string
+  padreIds: number[]
 }

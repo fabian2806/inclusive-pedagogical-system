@@ -27,7 +27,7 @@ export function StudentsTable({
                             <TableHead className="text-[#6B7280]">Estudiante</TableHead>
                             <TableHead className="text-[#6B7280]">Grado</TableHead>
                             <TableHead className="text-[#6B7280]">Docente asignado</TableHead>
-                            <TableHead className="text-[#6B7280]">Padre/Tutor</TableHead>
+                            <TableHead className="text-[#6B7280]">Padres/Tutores</TableHead>
                             <TableHead className="text-[#6B7280]">Estado</TableHead>
                             <TableHead className="text-[#6B7280] text-right">Acciones</TableHead>
                         </TableRow>
@@ -43,7 +43,6 @@ export function StudentsTable({
                         ) : (
                             students.map((student) => {
                                 const docente = student.docentes[0]
-                                const padre = student.padres[0]
                                 return (
                                     <TableRow key={student.id} className="border-[#E5E7EB]">
                                         <TableCell>
@@ -73,8 +72,10 @@ export function StudentsTable({
                                         </TableCell>
                                         <TableCell>
                                             <span className="text-sm text-[#374151]">
-                                                {padre
-                                                    ? `${padre.nombre} ${padre.apellido}`
+                                                {student.padres.length > 0
+                                                    ? student.padres
+                                                        .map((padre) => `${padre.nombre} ${padre.apellido}`)
+                                                        .join(", ")
                                                     : <span className="text-[#9CA3AF]">Sin asignar</span>
                                                 }
                                             </span>
