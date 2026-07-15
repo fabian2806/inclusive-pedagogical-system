@@ -1,7 +1,8 @@
 import axios from 'axios'
 
 const apiClient = axios.create({
-  baseURL: '/api',
+  // En dev cae a '/api' (proxy de Vite). En despliegue, VITE_API_URL apunta al backend.
+  baseURL: import.meta.env.VITE_API_URL ?? '/api',
   headers: {
     'Content-Type': 'application/json',
   },

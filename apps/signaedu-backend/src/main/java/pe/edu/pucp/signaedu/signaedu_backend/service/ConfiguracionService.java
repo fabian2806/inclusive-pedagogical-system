@@ -3,9 +3,11 @@ package pe.edu.pucp.signaedu.signaedu_backend.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import pe.edu.pucp.signaedu.signaedu_backend.dto.request.ContactoAdminRequest;
 import pe.edu.pucp.signaedu.signaedu_backend.dto.response.AperturaPeriodoResponse;
 import pe.edu.pucp.signaedu.signaedu_backend.dto.response.CierrePeriodoResponse;
 import pe.edu.pucp.signaedu.signaedu_backend.dto.response.ConfiguracionPeriodoResponse;
+import pe.edu.pucp.signaedu.signaedu_backend.dto.response.ContactoAdminResponse;
 import pe.edu.pucp.signaedu.signaedu_backend.exception.IllegalOperationException;
 import pe.edu.pucp.signaedu.signaedu_backend.exception.ResourceNotFoundException;
 import pe.edu.pucp.signaedu.signaedu_backend.model.Alumno;
@@ -25,6 +27,8 @@ import java.util.List;
 public class ConfiguracionService {
 
     private static final String CLAVE_PERIODO = "periodo_lectivo_vigente";
+    private static final String CLAVE_CONTACTO_CORREO = "contacto_admin_correo";
+    private static final String CLAVE_CONTACTO_TELEFONO = "contacto_admin_telefono";
 
     private final ConfiguracionRepository configuracionRepository;
     private final ExpedienteRepository expedienteRepository;
@@ -115,5 +119,43 @@ public class ConfiguracionService {
         return configuracionRepository.findByClave(CLAVE_PERIODO)
                 .orElseThrow(() -> new ResourceNotFoundException("Configuracion", "clave", CLAVE_PERIODO))
                 .getValor();
+    }
+
+    /**
+     * Datos de contacto del administrador mostrados en el login.
+     * No lanza error si las claves no existen: devuelve cadena vacia.
+     */
+    @Transactional(readOnly = true)
+    public ContactoAdminResponse obtenerContactoAdmin() {
+        String correo = obtenerValor(CLAVE_CONTACTO_CORREO);
+        String telefono = obtenerValor(CLAVE_CONTACTO_TELEFONO);
+
+        return ContactoAdminResponse.builder()
+                .correo(correo)
+                .telefono(telefono)
+                .build();
+    }
+
+    @Transactional
+    public ContactoAdminResponse actualizarContactoAdmin(ContactoAdminRequest request) {
+        guardarValor(CLAVE_CONTACTO_CORREO, request.getCorreo());
+        guardarValor(CLAVE_CONTACTO_TELEFONO,
+                request.getTelefono() != null ? request.getTelefono() : "");
+
+        return obtenerContactoAdmin();
+    }
+
+    private String obtenerValor(String clave) {
+        return configuracionRepository.findByClave(clave)
+                .map(Configuracion::getValor)
+                .orElse("");
+    }
+
+    /** Upsert: actualiza el valor si la clave existe, o la crea si no. */
+    private void guardarValor(String clave, String valor) {
+        Configuracion config = configuracionRepository.findByClave(clave)
+                .orElseGet(() -> Configuracion.builder().clave(clave).build());
+        config.setValor(valor);
+        configuracionRepository.save(config);
     }
 }

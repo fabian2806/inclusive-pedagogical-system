@@ -38,10 +38,10 @@ export function AdminStudents() {
 
     const allStudents = (students ?? []) as Student[]
     const availableTeachers: UsuarioSimpleResponse[] = (docentesData ?? []).map((d) => ({
-        id: d.id, nombre: d.nombre, apellido: d.apellido, correo: d.correo,
+        id: d.id, nombre: d.nombre, apellido: d.apellido, correo: d.correo, telefono: d.telefono,
     }))
     const availableParents: UsuarioSimpleResponse[] = (padresData ?? []).map((p) => ({
-        id: p.id, nombre: p.nombre, apellido: p.apellido, correo: p.correo,
+        id: p.id, nombre: p.nombre, apellido: p.apellido, correo: p.correo, telefono: p.telefono,
     }))
 
     const [search, setSearch] = useState("")

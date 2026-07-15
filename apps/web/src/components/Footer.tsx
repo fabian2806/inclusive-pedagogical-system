@@ -1,4 +1,4 @@
-import { Mail, ArrowUp } from "lucide-react"
+import { Mail } from "lucide-react"
 
 export function Footer() {
 

@@ -5,10 +5,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import pe.edu.pucp.signaedu.signaedu_backend.dto.request.ContactoAdminRequest;
 import pe.edu.pucp.signaedu.signaedu_backend.dto.request.PeriodoLectivoRequest;
 import pe.edu.pucp.signaedu.signaedu_backend.dto.response.AperturaPeriodoResponse;
 import pe.edu.pucp.signaedu.signaedu_backend.dto.response.CierrePeriodoResponse;
 import pe.edu.pucp.signaedu.signaedu_backend.dto.response.ConfiguracionPeriodoResponse;
+import pe.edu.pucp.signaedu.signaedu_backend.dto.response.ContactoAdminResponse;
 import pe.edu.pucp.signaedu.signaedu_backend.service.ConfiguracionService;
 
 @RestController
@@ -41,5 +43,18 @@ public class ConfiguracionController {
     @PreAuthorize("hasAuthority('EXPEDIENTE_ACTUALIZAR')")
     public ResponseEntity<CierrePeriodoResponse> cerrarPeriodo() {
         return ResponseEntity.ok(configuracionService.cerrarPeriodo());
+    }
+
+    @GetMapping("/contacto-admin")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ContactoAdminResponse> obtenerContactoAdmin() {
+        return ResponseEntity.ok(configuracionService.obtenerContactoAdmin());
+    }
+
+    @PutMapping("/contacto-admin")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ContactoAdminResponse> actualizarContactoAdmin(
+            @Valid @RequestBody ContactoAdminRequest request) {
+        return ResponseEntity.ok(configuracionService.actualizarContactoAdmin(request));
     }
 }
