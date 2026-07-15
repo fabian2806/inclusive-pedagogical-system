@@ -66,13 +66,18 @@ export default function Login() {
         setContactOpen(true)
     }
 
+    // Abre el redactor de Gmail en el navegador; evita depender del cliente de
+    // correo del sistema operativo (mailto:), que puede no estar configurado.
+    const construirUrlGmail = (para: string, asunto: string, cuerpo: string) =>
+        `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(para)}` +
+        `&su=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`
+
     const enviarSolicitudReset = () => {
-        const asunto = encodeURIComponent("Solicitud de restablecimiento de contraseña")
-        const cuerpo = encodeURIComponent(
+        const asunto = "Solicitud de restablecimiento de contraseña"
+        const cuerpo =
             `Hola,\n\nSolicito el restablecimiento de la contraseña de mi cuenta en SignaEdu.\n\n` +
             `Correo de la cuenta: ${forgotEmail || "(indica tu correo)"}\n\nGracias.`
-        )
-        window.location.href = `mailto:${adminCorreo}?subject=${asunto}&body=${cuerpo}`
+        window.open(construirUrlGmail(adminCorreo, asunto, cuerpo), "_blank", "noopener,noreferrer")
     }
 
     const copiarCorreo = async () => {
@@ -341,9 +346,23 @@ export default function Login() {
                             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForgotEmail(e.target.value)}
                             className="h-11 border-[#D1D5DB] focus:border-[#3B82F6] focus:ring-[#3B82F6]"
                         />
+                        <div className="flex items-center justify-between gap-2">
+                            <p className="text-xs text-[#9CA3AF]">
+                                Se abrirá Gmail para escribir a{" "}
+                                <span className="font-medium text-[#6B7280]">{adminCorreo}</span>.
+                            </p>
+                            <button
+                                type="button"
+                                onClick={copiarCorreo}
+                                className="shrink-0 inline-flex items-center gap-1 text-xs font-medium text-[#3B82F6] hover:text-[#2563EB] transition-colors"
+                                aria-label="Copiar correo del administrador"
+                            >
+                                {copiado ? <Check size={13} /> : <Copy size={13} />}
+                                {copiado ? "Copiado" : "Copiar correo"}
+                            </button>
+                        </div>
                         <p className="text-xs text-[#9CA3AF]">
-                            Se enviará a{" "}
-                            <span className="font-medium text-[#6B7280]">{adminCorreo}</span>.
+                            ¿No usas Gmail? Copia el correo y escríbenos desde tu proveedor.
                         </p>
                     </div>
 
@@ -433,7 +452,11 @@ export default function Login() {
                         </Button>
                         <Button
                             type="button"
-                            onClick={() => { window.location.href = `mailto:${adminCorreo}` }}
+                            onClick={() => window.open(
+                                construirUrlGmail(adminCorreo, "Consulta de acceso a SignaEdu", ""),
+                                "_blank",
+                                "noopener,noreferrer"
+                            )}
                             className="bg-[#1E3A5F] hover:bg-[#2D4A6F] text-white gap-2"
                         >
                             <Mail size={16} />
