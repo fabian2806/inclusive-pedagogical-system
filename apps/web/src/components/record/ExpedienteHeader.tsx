@@ -1,14 +1,34 @@
-import { ArrowLeft, User } from "lucide-react"
+import { ArrowLeft, User, CalendarDays } from "lucide-react"
 import { Link } from "react-router-dom"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import type { AlumnoResponse } from "@/types/api"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import type { AlumnoResponse, ExpedientePeriodoResponse } from "@/types/api"
 
 interface Props {
   alumno: AlumnoResponse
+  /** Periodos con expediente. Si hay uno solo, el selector no se muestra. */
+  periodos?: ExpedientePeriodoResponse[]
+  periodoSeleccionado?: string
+  onPeriodoChange?: (periodo: string) => void
 }
 
-export function ExpedienteHeader({ alumno }: Props) {
+export function ExpedienteHeader({
+  alumno,
+  periodos = [],
+  periodoSeleccionado,
+  onPeriodoChange,
+}: Props) {
+  // Con un unico periodo el selector no aporta: el expediente vigente es el
+  // unico que existe. Aparece recien cuando hay historial que consultar.
+  const mostrarSelector = periodos.length > 1 && !!onPeriodoChange
+
   return (
     <div className="flex items-center gap-4">
       <Link to="/dashboard/estudiantes">
@@ -36,7 +56,26 @@ export function ExpedienteHeader({ alumno }: Props) {
           {alumno.grado} · Sección {alumno.seccion}
         </p>
       </div>
-      <div className="flex gap-2">
+      <div className="flex items-center gap-2">
+        {mostrarSelector && (
+          <Select value={periodoSeleccionado} onValueChange={onPeriodoChange}>
+            <SelectTrigger
+              aria-label="Periodo del expediente"
+              className="w-44 border-[#E5E7EB] text-[#1E3A5F]"
+            >
+              <CalendarDays size={15} className="text-[#6B7280] shrink-0" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {periodos.map(periodo => (
+                <SelectItem key={periodo.periodoLectivo} value={periodo.periodoLectivo}>
+                  {periodo.periodoLectivo}
+                  {periodo.editable ? " · vigente" : " · cerrado"}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
         <Link to={`/dashboard/estudiantes/${alumno.id}/perfil`}>
           <Button variant="ghost" className="gap-2 text-[#6B7280] hover:text-[#1E3A5F]">
             <User size={16} />
