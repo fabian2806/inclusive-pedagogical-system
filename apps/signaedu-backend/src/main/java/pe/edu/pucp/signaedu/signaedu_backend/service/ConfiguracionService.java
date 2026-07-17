@@ -42,10 +42,35 @@ public class ConfiguracionService {
         return construirPeriodoResponse(config.getValor());
     }
 
+    /**
+     * Cambia el periodo lectivo vigente.
+     *
+     * <p>Exige que el periodo actual este cerrado. Es la guarda del orden
+     * cerrar → cambiar → aperturar: mover el puntero con el periodo abierto
+     * deja sus expedientes en ACTIVO fuera del alcance de {@link #cerrarPeriodo},
+     * que siempre opera sobre el vigente. A partir de ahi no hay forma de
+     * cerrarlos desde la aplicacion — solo tocando la base de datos a mano.
+     *
+     * @throws IllegalOperationException si el periodo vigente tiene expedientes activos
+     */
     @Transactional
     public ConfiguracionPeriodoResponse actualizarPeriodoVigente(String nuevoPeriodo) {
         Configuracion config = configuracionRepository.findByClave(CLAVE_PERIODO)
                 .orElseThrow(() -> new ResourceNotFoundException("Configuracion", "clave", CLAVE_PERIODO));
+
+        String periodoActual = config.getValor();
+
+        // Reguardar el mismo valor no mueve el puntero: no hay nada que proteger.
+        if (!periodoActual.equals(nuevoPeriodo)) {
+            long activos = expedienteRepository.countByPeriodoLectivoAndEstado(
+                    periodoActual, EstadoExpediente.ACTIVO);
+
+            if (activos > 0) {
+                throw new IllegalOperationException(
+                        "No se puede cambiar el periodo vigente: el periodo " + periodoActual
+                                + " tiene " + activos + " expediente(s) activo(s). Cierralo primero.");
+            }
+        }
 
         config.setValor(nuevoPeriodo);
         configuracionRepository.save(config);
@@ -70,21 +95,25 @@ public class ConfiguracionService {
         List<Alumno> alumnosActivos = alumnoRepository.findByEstado(EstadoAlumno.ACTIVO);
 
         int creados = 0;
+        int omitidos = 0;
         for (Alumno alumno : alumnosActivos) {
-            if (!expedienteRepository.existsByAlumnoIdAndPeriodoLectivo(alumno.getId(), periodo)) {
-                Expediente expediente = Expediente.builder()
-                        .alumno(alumno)
-                        .fechaApertura(LocalDate.now())
-                        .periodoLectivo(periodo)
-                        .build();
-                expedienteRepository.save(expediente);
-                creados++;
+            if (expedienteRepository.existsByAlumnoIdAndPeriodoLectivo(alumno.getId(), periodo)) {
+                omitidos++;
+                continue;
             }
+            Expediente expediente = Expediente.builder()
+                    .alumno(alumno)
+                    .fechaApertura(LocalDate.now())
+                    .periodoLectivo(periodo)
+                    .build();
+            expedienteRepository.save(expediente);
+            creados++;
         }
 
         return AperturaPeriodoResponse.builder()
                 .periodoLectivo(periodo)
                 .expedientesCreados(creados)
+                .expedientesOmitidos(omitidos)
                 .build();
     }
 

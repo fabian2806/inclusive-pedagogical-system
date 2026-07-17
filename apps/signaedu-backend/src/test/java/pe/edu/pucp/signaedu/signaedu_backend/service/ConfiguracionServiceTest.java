@@ -126,6 +126,60 @@ class ConfiguracionServiceTest {
         verify(configuracionRepository).save(config);
     }
 
+    /**
+     * Guarda del orden cerrar → cambiar → aperturar. Sin esto, los expedientes
+     * del periodo viejo quedan ACTIVO fuera del alcance de cerrarPeriodo (que
+     * siempre opera sobre el vigente) y ya no hay forma de cerrarlos por la API.
+     */
+    @Test
+    void noDebeCambiarPeriodoVigenteSiElActualTieneExpedientesActivos() {
+        when(configuracionRepository.findByClave("periodo_lectivo_vigente"))
+                .thenReturn(Optional.of(configPeriodo("2026")));
+        when(expedienteRepository.countByPeriodoLectivoAndEstado("2026", EstadoExpediente.ACTIVO))
+                .thenReturn(6L);
+
+        assertThatThrownBy(() -> configuracionService.actualizarPeriodoVigente("2027"))
+                .isInstanceOf(IllegalOperationException.class)
+                .hasMessageContaining("2026")
+                .hasMessageContaining("6")
+                .hasMessageContaining("Cierralo primero");
+
+        verify(configuracionRepository, never()).save(any(Configuracion.class));
+    }
+
+    @Test
+    void debeCambiarPeriodoVigenteCuandoElActualEstaCerrado() {
+        Configuracion config = configPeriodo("2026");
+
+        when(configuracionRepository.findByClave("periodo_lectivo_vigente"))
+                .thenReturn(Optional.of(config));
+        when(expedienteRepository.countByPeriodoLectivoAndEstado("2026", EstadoExpediente.ACTIVO))
+                .thenReturn(0L);
+        when(configuracionRepository.save(any(Configuracion.class))).thenReturn(config);
+        when(expedienteRepository.findByPeriodoLectivoAndEstado("2027", EstadoExpediente.ACTIVO))
+                .thenReturn(Collections.emptyList());
+
+        assertThat(configuracionService.actualizarPeriodoVigente("2027").getPeriodoLectivoVigente())
+                .isEqualTo("2027");
+    }
+
+    /** Reguardar el mismo valor no mueve el puntero: no hay nada que proteger. */
+    @Test
+    void debePermitirReguardarElMismoPeriodoAunqueEsteAbierto() {
+        Configuracion config = configPeriodo("2026");
+
+        when(configuracionRepository.findByClave("periodo_lectivo_vigente"))
+                .thenReturn(Optional.of(config));
+        when(expedienteRepository.findByPeriodoLectivoAndEstado("2026", EstadoExpediente.ACTIVO))
+                .thenReturn(List.of(expedienteActivo(1L, alumnoActivo(1L, "Carlos"), "2026")));
+
+        assertThat(configuracionService.actualizarPeriodoVigente("2026").getPeriodoLectivoVigente())
+                .isEqualTo("2026");
+
+        verify(expedienteRepository, never())
+                .countByPeriodoLectivoAndEstado(anyString(), any());
+    }
+
     // --- aperturarPeriodo ---
 
     @Test
@@ -172,6 +226,50 @@ class ConfiguracionServiceTest {
 
         assertThat(response.getExpedientesCreados()).isEqualTo(1);
         verify(expedienteRepository, times(1)).save(any(Expediente.class));
+    }
+
+    /**
+     * El salteo por idempotencia deja de ser silencioso: la apertura reporta
+     * cuantos alumnos quedaron afuera, en vez de prometer N y entregar M sin
+     * explicar la diferencia.
+     */
+    @Test
+    void debeReportarLosAlumnosOmitidosAlAperturar() {
+        Alumno alumno1 = alumnoActivo(1L, "Carlos");
+        Alumno alumno2 = alumnoActivo(2L, "Ana");
+        Alumno alumno3 = alumnoActivo(3L, "Luis");
+
+        when(configuracionRepository.findByClave("periodo_lectivo_vigente"))
+                .thenReturn(Optional.of(configPeriodo("2027")));
+        when(alumnoRepository.findByEstado(EstadoAlumno.ACTIVO))
+                .thenReturn(List.of(alumno1, alumno2, alumno3));
+        when(expedienteRepository.existsByAlumnoIdAndPeriodoLectivo(1L, "2027")).thenReturn(true);
+        when(expedienteRepository.existsByAlumnoIdAndPeriodoLectivo(2L, "2027")).thenReturn(true);
+        when(expedienteRepository.existsByAlumnoIdAndPeriodoLectivo(3L, "2027")).thenReturn(false);
+        when(expedienteRepository.save(any(Expediente.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        AperturaPeriodoResponse response = configuracionService.aperturarPeriodo();
+
+        assertThat(response.getExpedientesCreados()).isEqualTo(1);
+        assertThat(response.getExpedientesOmitidos()).isEqualTo(2);
+    }
+
+    @Test
+    void noDebeReportarOmitidosCuandoSeCreanTodos() {
+        Alumno alumno1 = alumnoActivo(1L, "Carlos");
+
+        when(configuracionRepository.findByClave("periodo_lectivo_vigente"))
+                .thenReturn(Optional.of(configPeriodo("2027")));
+        when(alumnoRepository.findByEstado(EstadoAlumno.ACTIVO)).thenReturn(List.of(alumno1));
+        when(expedienteRepository.existsByAlumnoIdAndPeriodoLectivo(1L, "2027")).thenReturn(false);
+        when(expedienteRepository.save(any(Expediente.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        AperturaPeriodoResponse response = configuracionService.aperturarPeriodo();
+
+        assertThat(response.getExpedientesCreados()).isEqualTo(1);
+        assertThat(response.getExpedientesOmitidos()).isZero();
     }
 
     // --- cerrarPeriodo ---
