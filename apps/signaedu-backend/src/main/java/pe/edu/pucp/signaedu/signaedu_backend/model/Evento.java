@@ -7,8 +7,8 @@ import pe.edu.pucp.signaedu.signaedu_backend.model.enums.ModalidadEvento;
 import pe.edu.pucp.signaedu.signaedu_backend.model.enums.TipoEvento;
 
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "evento")
@@ -70,7 +70,11 @@ public class Evento {
     @Column(name = "fecha_actualizacion")
     private LocalDateTime fechaActualizacion;
 
+    // List, no Set: los EventoUsuario se agregan antes del flush, con id == null. Un
+    // HashSet los deduplicaba a uno solo porque el equals/hashCode de EventoUsuario
+    // mira el id, y todos los transitorios comparten id null. La unicidad la garantizan
+    // el chequeo yaInvitado de EventoService y la constraint uq_evento_usuario.
     @OneToMany(mappedBy = "evento", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private Set<EventoUsuario> invitados = new HashSet<>();
+    private List<EventoUsuario> invitados = new ArrayList<>();
 }

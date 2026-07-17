@@ -33,6 +33,7 @@ import pe.edu.pucp.signaedu.signaedu_backend.service.storage.ArchivoStorage;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
@@ -118,7 +119,7 @@ class EventoArchivoServiceTest {
                 .alumno(alumno)
                 .usuarioCreador(creador())
                 .fechaCreacion(LocalDateTime.now())
-                .invitados(new HashSet<>())
+                .invitados(new ArrayList<>())
                 .build();
     }
 

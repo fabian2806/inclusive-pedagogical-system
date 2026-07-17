@@ -56,8 +56,8 @@ import pe.edu.pucp.signaedu.signaedu_backend.service.storage.ArchivoStorage;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -205,7 +205,7 @@ class EventoServiceTest {
                 .alumno(alumno())
                 .usuarioCreador(docente())
                 .fechaCreacion(LocalDateTime.now())
-                .invitados(new LinkedHashSet<>())
+                .invitados(new ArrayList<>())
                 .build();
         // Padre invitado en PENDIENTE
         EventoUsuario inv = EventoUsuario.builder()
