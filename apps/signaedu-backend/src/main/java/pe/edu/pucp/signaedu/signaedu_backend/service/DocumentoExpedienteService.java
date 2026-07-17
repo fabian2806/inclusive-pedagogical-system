@@ -151,10 +151,15 @@ public class DocumentoExpedienteService {
         return documentoMapper.toResponse(documento);
     }
 
+    /**
+     * @param periodo periodo lectivo a consultar. Si es null se usa el vigente,
+     *                conservando el comportamiento historico (ver
+     *                {@link #obtenerExpedienteParaLectura}).
+     */
     @Transactional(readOnly = true)
-    public List<DocumentoExpedienteResponse> listar(Long alumnoId) {
+    public List<DocumentoExpedienteResponse> listar(Long alumnoId, String periodo) {
         validarAccesoYObtenerUsuario(alumnoId);
-        Optional<Expediente> expediente = obtenerExpedienteVigente(alumnoId);
+        Optional<Expediente> expediente = obtenerExpedienteParaLectura(alumnoId, periodo);
         if (expediente.isEmpty()) {
             return List.of();
         }
@@ -298,6 +303,19 @@ public class DocumentoExpedienteService {
         String periodo = configuracionService.obtenerValorPeriodo();
         return expedienteRepository.findByAlumnoIdAndPeriodoLectivoAndEstado(
                 alumnoId, periodo, EstadoExpediente.ACTIVO);
+    }
+
+    /**
+     * Resuelve el expediente a LEER (espejo de BitacoraService). Sin
+     * {@code periodo}, expediente vigente + ACTIVO como siempre; con
+     * {@code periodo}, ese periodo concreto ignorando el estado, para consultar
+     * periodos ya cerrados en solo lectura.
+     */
+    private Optional<Expediente> obtenerExpedienteParaLectura(Long alumnoId, String periodo) {
+        if (periodo == null || periodo.isBlank()) {
+            return obtenerExpedienteVigente(alumnoId);
+        }
+        return expedienteRepository.findByAlumnoIdAndPeriodoLectivo(alumnoId, periodo);
     }
 
     private Usuario validarAccesoYObtenerUsuario(Long alumnoId) {

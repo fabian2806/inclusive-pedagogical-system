@@ -38,6 +38,11 @@ public class BitacoraController {
                 .body(bitacoraService.crear(alumnoId, request));
     }
 
+    /**
+     * @param periodo periodo lectivo a consultar. Omitirlo devuelve el expediente
+     *                vigente; indicarlo permite consultar periodos anteriores en
+     *                solo lectura.
+     */
     @GetMapping
     @PreAuthorize("hasAuthority('BITACORA_LEER')")
     public ResponseEntity<List<EntradaExpedienteResponse>> listar(
@@ -46,8 +51,9 @@ public class BitacoraController {
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime desde,
             @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime hasta) {
-        return ResponseEntity.ok(bitacoraService.listar(alumnoId, tipo, desde, hasta));
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime hasta,
+            @RequestParam(required = false) String periodo) {
+        return ResponseEntity.ok(bitacoraService.listar(alumnoId, tipo, desde, hasta, periodo));
     }
 
     @GetMapping("/export")

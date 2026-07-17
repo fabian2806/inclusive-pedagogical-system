@@ -101,7 +101,7 @@ class DocumentoExpedienteControllerTest {
     @Test
     @WithMockUser(authorities = {"DOCUMENTO_EXPEDIENTE_LEER"})
     void getListarDevuelveDocumentos() throws Exception {
-        when(documentoService.listar(eq(5L))).thenReturn(List.of(responseEjemplo()));
+        when(documentoService.listar(eq(5L), any())).thenReturn(List.of(responseEjemplo()));
 
         mockMvc.perform(get("/alumnos/5/documentos"))
                 .andExpect(status().isOk())

@@ -25,6 +25,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -130,7 +131,7 @@ class BitacoraControllerTest {
     @Test
     @WithMockUser(authorities = {"BITACORA_LEER"})
     void getDebeListarConPermisoLeer() throws Exception {
-        when(bitacoraService.listar(eq(1L), any(), any(), any()))
+        when(bitacoraService.listar(eq(1L), any(), any(), any(), any()))
                 .thenReturn(List.of(responseEjemplo()));
 
         mockMvc.perform(get("/alumnos/1/bitacora"))
@@ -149,7 +150,7 @@ class BitacoraControllerTest {
     @Test
     @WithMockUser(authorities = {"BITACORA_LEER"})
     void getDebePasarFiltrosDeQueryParamAlService() throws Exception {
-        when(bitacoraService.listar(eq(1L), eq(TipoEntrada.OBSERVACION_PEDAGOGICA), any(), any()))
+        when(bitacoraService.listar(eq(1L), eq(TipoEntrada.OBSERVACION_PEDAGOGICA), any(), any(), any()))
                 .thenReturn(List.of());
 
         mockMvc.perform(get("/alumnos/1/bitacora")
@@ -159,7 +160,7 @@ class BitacoraControllerTest {
                 .andExpect(status().isOk());
 
         verify(bitacoraService).listar(
-                eq(1L), eq(TipoEntrada.OBSERVACION_PEDAGOGICA), any(), any());
+                eq(1L), eq(TipoEntrada.OBSERVACION_PEDAGOGICA), any(), any(), isNull());
     }
 
     // ---------- GET /alumnos/{id}/bitacora/export (Fase 5) ----------

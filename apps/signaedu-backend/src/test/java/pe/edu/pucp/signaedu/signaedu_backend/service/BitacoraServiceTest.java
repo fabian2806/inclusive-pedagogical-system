@@ -49,6 +49,7 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
@@ -405,9 +406,79 @@ class BitacoraServiceTest {
         stubSinExpedienteVigente();
 
         List<EntradaExpedienteResponse> resultado = bitacoraService.listar(
-                ALUMNO_ID, null, null, null);
+                ALUMNO_ID, null, null, null, null);
 
         assertThat(resultado).isEmpty();
+    }
+
+    // ---------- consulta de periodos anteriores (solo lectura) ----------
+
+    /**
+     * Con periodo explicito la lectura NO exige ACTIVO: un expediente cerrado
+     * se consulta. Es toda la diferencia entre "donde escribo" y "que puedo ver".
+     */
+    @Test
+    void listarConPeriodoResuelveEseExpedienteAunqueEsteCerrado() {
+        when(alumnoRepository.existsById(ALUMNO_ID)).thenReturn(true);
+        stubUsuarioActualConRol(TipoRol.SAANEE);
+
+        Expediente cerrado = Expediente.builder()
+                .id(55L)
+                .alumno(alumno())
+                .periodoLectivo("2024")
+                .estado(EstadoExpediente.INACTIVO)
+                .build();
+        when(expedienteRepository.findByAlumnoIdAndPeriodoLectivo(ALUMNO_ID, "2024"))
+                .thenReturn(Optional.of(cerrado));
+        when(entradaRepository.findAll(any(Specification.class), any(Sort.class)))
+                .thenReturn(List.of());
+
+        bitacoraService.listar(ALUMNO_ID, null, null, null, "2024");
+
+        // No debe pasar por el periodo vigente ni por el filtro de estado.
+        verify(configuracionService, never()).obtenerValorPeriodo();
+        verify(expedienteRepository, never())
+                .findByAlumnoIdAndPeriodoLectivoAndEstado(anyLong(), anyString(), any());
+    }
+
+    @Test
+    void listarSinPeriodoSigueResolviendoElVigenteActivo() {
+        when(alumnoRepository.existsById(ALUMNO_ID)).thenReturn(true);
+        stubUsuarioActualConRol(TipoRol.SAANEE);
+        stubExpedienteVigente();
+        when(entradaRepository.findAll(any(Specification.class), any(Sort.class)))
+                .thenReturn(List.of());
+
+        bitacoraService.listar(ALUMNO_ID, null, null, null, null);
+
+        verify(expedienteRepository)
+                .findByAlumnoIdAndPeriodoLectivoAndEstado(ALUMNO_ID, PERIODO, EstadoExpediente.ACTIVO);
+        verify(expedienteRepository, never())
+                .findByAlumnoIdAndPeriodoLectivo(anyLong(), anyString());
+    }
+
+    @Test
+    void listarConPeriodoInexistenteDevuelveListaVacia() {
+        when(alumnoRepository.existsById(ALUMNO_ID)).thenReturn(true);
+        stubUsuarioActualConRol(TipoRol.SAANEE);
+        when(expedienteRepository.findByAlumnoIdAndPeriodoLectivo(ALUMNO_ID, "1999"))
+                .thenReturn(Optional.empty());
+
+        assertThat(bitacoraService.listar(ALUMNO_ID, null, null, null, "1999")).isEmpty();
+    }
+
+    /** La consulta historica no relaja el control de acceso por rol. */
+    @Test
+    void listarConPeriodoSigueValidandoAccesoAlAlumno() {
+        when(alumnoRepository.existsById(ALUMNO_ID)).thenReturn(true);
+        stubUsuarioActualConRol(TipoRol.DOCENTE);
+        when(alumnoRepository.existsByIdAndDocentesId(ALUMNO_ID, USUARIO_ID)).thenReturn(false);
+
+        assertThatThrownBy(() -> bitacoraService.listar(ALUMNO_ID, null, null, null, "2024"))
+                .isInstanceOf(AccessDeniedException.class);
+
+        verify(expedienteRepository, never())
+                .findByAlumnoIdAndPeriodoLectivo(anyLong(), anyString());
     }
 
     @Test
@@ -434,7 +505,7 @@ class BitacoraServiceTest {
                         .build());
 
         List<EntradaExpedienteResponse> resultado = bitacoraService.listar(
-                ALUMNO_ID, null, null, null);
+                ALUMNO_ID, null, null, null, null);
 
         assertThat(resultado).hasSize(1);
         assertThat(resultado.get(0).getAutor().getRol()).isEqualTo("DOCENTE");
@@ -452,7 +523,8 @@ class BitacoraServiceTest {
                 ALUMNO_ID,
                 TipoEntrada.OBSERVACION_PEDAGOGICA,
                 LocalDateTime.of(2026, 1, 1, 0, 0),
-                LocalDateTime.of(2026, 12, 31, 23, 59));
+                LocalDateTime.of(2026, 12, 31, 23, 59),
+                null);
 
         verify(entradaRepository).findAll(any(Specification.class),
                 eq(Sort.by(Sort.Direction.DESC, "fecha")));

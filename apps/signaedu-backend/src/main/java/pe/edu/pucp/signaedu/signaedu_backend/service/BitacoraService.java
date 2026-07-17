@@ -133,12 +133,18 @@ public class BitacoraService {
                 : base;
     }
 
+    /**
+     * @param periodo periodo lectivo a consultar. Si es null se usa el vigente,
+     *                conservando el comportamiento historico (ver
+     *                {@link #obtenerExpedienteParaLectura}).
+     */
     @Transactional(readOnly = true)
     public List<EntradaExpedienteResponse> listar(
-            Long alumnoId, TipoEntrada tipo, LocalDateTime desde, LocalDateTime hasta) {
+            Long alumnoId, TipoEntrada tipo, LocalDateTime desde, LocalDateTime hasta,
+            String periodo) {
         validarAccesoYObtenerUsuario(alumnoId);
 
-        Optional<Expediente> expediente = obtenerExpedienteVigente(alumnoId);
+        Optional<Expediente> expediente = obtenerExpedienteParaLectura(alumnoId, periodo);
         if (expediente.isEmpty()) {
             return List.of();
         }
@@ -284,6 +290,24 @@ public class BitacoraService {
         String periodo = configuracionService.obtenerValorPeriodo();
         return expedienteRepository.findByAlumnoIdAndPeriodoLectivoAndEstado(
                 alumnoId, periodo, EstadoExpediente.ACTIVO);
+    }
+
+    /**
+     * Resuelve el expediente a LEER. Escribir y ver no son la misma pregunta:
+     * la escritura siempre va al unico expediente activo del periodo vigente
+     * ({@link #obtenerExpedienteVigenteOLanzar}), mientras que la lectura puede
+     * apuntar a un periodo anterior ya cerrado.
+     *
+     * <p>Sin {@code periodo} el comportamiento es el de siempre: expediente
+     * vigente + ACTIVO, y lista vacia si no hay (decision de Fase 2b). Con
+     * {@code periodo} se resuelve ese periodo concreto ignorando el estado,
+     * porque un expediente cerrado se consulta pero no se edita.
+     */
+    private Optional<Expediente> obtenerExpedienteParaLectura(Long alumnoId, String periodo) {
+        if (periodo == null || periodo.isBlank()) {
+            return obtenerExpedienteVigente(alumnoId);
+        }
+        return expedienteRepository.findByAlumnoIdAndPeriodoLectivo(alumnoId, periodo);
     }
 
     private EntradaExpediente cargarYValidarRaiz(Long raizId, Expediente expediente) {

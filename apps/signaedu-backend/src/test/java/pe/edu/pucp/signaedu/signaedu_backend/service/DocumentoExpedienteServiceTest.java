@@ -357,7 +357,7 @@ class DocumentoExpedienteServiceTest {
         when(documentoRepository.findByExpedienteId(EXPEDIENTE_ID)).thenReturn(List.of(doc));
         when(documentoMapper.toResponse(any())).thenReturn(anyResponse());
 
-        List<DocumentoExpedienteResponse> result = service.listar(ALUMNO_ID);
+        List<DocumentoExpedienteResponse> result = service.listar(ALUMNO_ID, null);
 
         assertThat(result).hasSize(1);
     }
@@ -371,10 +371,36 @@ class DocumentoExpedienteServiceTest {
         when(expedienteRepository.findByAlumnoIdAndPeriodoLectivoAndEstado(any(), any(), any()))
                 .thenReturn(Optional.empty());
 
-        List<DocumentoExpedienteResponse> result = service.listar(ALUMNO_ID);
+        List<DocumentoExpedienteResponse> result = service.listar(ALUMNO_ID, null);
 
         assertThat(result).isEmpty();
         verify(documentoRepository, never()).findByExpedienteId(any());
+    }
+
+    /**
+     * Con periodo explicito la lectura no exige ACTIVO: los documentos de un
+     * periodo cerrado se consultan (solo lectura).
+     */
+    @Test
+    void listarConPeriodoResuelveEseExpedienteAunqueEsteCerrado() {
+        mockAccesoUsuario();
+        Expediente cerrado = Expediente.builder()
+                .id(77L)
+                .periodoLectivo("2024")
+                .estado(EstadoExpediente.INACTIVO)
+                .build();
+        when(expedienteRepository.findByAlumnoIdAndPeriodoLectivo(ALUMNO_ID, "2024"))
+                .thenReturn(Optional.of(cerrado));
+        when(documentoRepository.findByExpedienteId(77L))
+                .thenReturn(List.of(DocumentoExpediente.builder().id(1L).build()));
+        when(documentoMapper.toResponse(any())).thenReturn(anyResponse());
+
+        List<DocumentoExpedienteResponse> result = service.listar(ALUMNO_ID, "2024");
+
+        assertThat(result).hasSize(1);
+        verify(configuracionService, never()).obtenerValorPeriodo();
+        verify(expedienteRepository, never())
+                .findByAlumnoIdAndPeriodoLectivoAndEstado(any(), any(), any());
     }
 
     // ============ descargar() ============
