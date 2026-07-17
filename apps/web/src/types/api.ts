@@ -232,6 +232,8 @@ export interface BitacoraListarFiltros {
   tipo?: TipoEntrada
   desde?: string
   hasta?: string
+  /** Periodo lectivo a consultar. Omitirlo devuelve el expediente vigente. */
+  periodo?: string
 }
 
 // --- Indicadores (Fase 2c) ---
@@ -333,6 +335,16 @@ export interface ConfiguracionPeriodoResponse {
   periodoLectivoVigente: string
   periodoAbierto: boolean
   expedientesActivos: number
+}
+
+/** Un periodo en el que el alumno tiene expediente. Alimenta el selector. */
+export interface ExpedientePeriodoResponse {
+  periodoLectivo: string
+  estado: 'ACTIVO' | 'INACTIVO'
+  /** El periodo coincide con el periodo lectivo vigente del sistema. */
+  vigente: boolean
+  /** Se puede escribir. Espeja la regla del backend: vigente + ACTIVO. */
+  editable: boolean
 }
 
 export interface PeriodoLectivoRequest {

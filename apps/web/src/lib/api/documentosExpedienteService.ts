@@ -6,9 +6,17 @@ import type {
 import { extraerFilename, triggerDownload } from '@/lib/downloadFile'
 
 export const documentosExpedienteService = {
-  async listar(alumnoId: number): Promise<DocumentoExpedienteResponse[]> {
+  /**
+   * @param periodo periodo lectivo a consultar. Omitirlo devuelve el expediente
+   *                vigente; indicarlo consulta un periodo anterior (solo lectura).
+   */
+  async listar(
+    alumnoId: number,
+    periodo?: string,
+  ): Promise<DocumentoExpedienteResponse[]> {
     const response = await apiClient.get<DocumentoExpedienteResponse[]>(
       `/alumnos/${alumnoId}/documentos`,
+      { params: periodo ? { periodo } : undefined },
     )
     return response.data
   },
