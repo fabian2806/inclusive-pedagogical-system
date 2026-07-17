@@ -26,7 +26,6 @@ import { ExpedienteHeader } from "@/components/record/ExpedienteHeader"
 import { PerfilCard } from "@/components/record/PerfilCard"
 import { EquipoAsignadoCard } from "@/components/record/EquipoAsignadoCard"
 import { ContactosFamiliaresCard } from "@/components/record/ContactosFamiliaresCard"
-import { ProximosEventosCard } from "@/components/record/ProximosEventosCard"
 import { BitacoraSection } from "@/components/record/BitacoraSection"
 import type { EntryFormState } from "@/components/record/BitacoraEntryForm"
 import { DocumentosSection } from "@/components/record/DocumentosSection"
@@ -363,7 +362,6 @@ export default function StudentRecord() {
           <PerfilCard alumno={alumno} perfil={perfil} />
           <EquipoAsignadoCard docentes={docentes} padres={padres} />
           <ContactosFamiliaresCard padres={padres} />
-          <ProximosEventosCard />
         </div>
 
         {/* Right Column - Bitácora & Documentos */}
