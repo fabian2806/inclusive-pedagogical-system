@@ -1,13 +1,14 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { FileText, FolderOpen } from "lucide-react"
+import { FileText, FolderOpen, Lock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useParams } from "react-router-dom"
 import {
   alumnosService,
   bitacoraService,
   entradaArchivosService,
+  expedientesService,
   indicadoresService,
   perfilDiscapacidadService,
 } from "@/lib/api"
@@ -57,6 +58,33 @@ export default function StudentRecord() {
   const { data: alumno, isLoading: loadingAlumno } = useApiQuery(fetchAlumno)
   const { data: perfil } = useApiQuery(fetchPerfil)
 
+  // --- Periodos con expediente (selector de historial) ---
+  const fetchPeriodos = useCallback(
+    () => expedientesService.listarPeriodos(alumnoId),
+    [alumnoId],
+  )
+  const { data: periodos } = useApiQuery(fetchPeriodos)
+
+  // null = periodo vigente. Mantenerlo en null (en vez de copiar el año
+  // vigente) preserva el comportamiento de siempre: sin query param, el
+  // backend resuelve el vigente por su cuenta.
+  const [periodoSeleccionado, setPeriodoSeleccionado] = useState<string | null>(null)
+
+  const periodoVigente = useMemo(
+    () => periodos?.find(p => p.vigente)?.periodoLectivo,
+    [periodos],
+  )
+  const periodoActivo = periodoSeleccionado ?? periodoVigente
+
+  // Un periodo es de solo lectura salvo que sea el vigente Y este ACTIVO:
+  // espeja exactamente la regla de escritura del backend. Mientras los
+  // periodos no cargan asumimos escritura, que es el estado de siempre.
+  const soloLectura = useMemo(() => {
+    if (!periodos || periodos.length === 0) return false
+    const actual = periodos.find(p => p.periodoLectivo === periodoActivo)
+    return actual ? !actual.editable : false
+  }, [periodos, periodoActivo])
+
   // Indicadores activos: solo el docente los necesita (es el único rol que puede crear EVALUACION_INDICADOR).
   // Para otros roles devolvemos lista vacía y evitamos el round-trip.
   const fetchIndicadoresActivos = useCallback(
@@ -104,7 +132,10 @@ export default function StudentRecord() {
     setIsLoading(true)
     setError(null)
     try {
-      const data = await bitacoraService.listar(alumnoId)
+      const data = await bitacoraService.listar(
+        alumnoId,
+        periodoSeleccionado ? { periodo: periodoSeleccionado } : undefined,
+      )
       // Cargamos los adjuntos de cada raíz en paralelo. Usamos allSettled
       // para que si una request individual falla (p.ej. permisos), no
       // tumbemos el render completo de la bitácora.
@@ -129,7 +160,7 @@ export default function StudentRecord() {
     } finally {
       setIsLoading(false)
     }
-  }, [alumnoId])
+  }, [alumnoId, periodoSeleccionado])
 
   useEffect(() => {
     cargar()
@@ -291,7 +322,40 @@ export default function StudentRecord() {
 
   return (
     <div className="p-6 space-y-6">
-      <ExpedienteHeader alumno={alumno} />
+      <ExpedienteHeader
+        alumno={alumno}
+        periodos={periodos ?? []}
+        periodoSeleccionado={periodoActivo}
+        onPeriodoChange={(periodo) => {
+          // Volver al vigente vuelve a null: sin query param, como siempre.
+          setPeriodoSeleccionado(periodo === periodoVigente ? null : periodo)
+          setActiveFilter("all")
+          setReplyingTo(null)
+        }}
+      />
+
+      {soloLectura && (
+        <div className="flex items-start gap-2 p-3 rounded-lg bg-[#FEF3C7] border border-[#FDE68A]">
+          <Lock size={15} className="text-[#D97706] mt-0.5 shrink-0" />
+          <p className="text-xs text-[#92400E]">
+            Estás viendo el periodo{" "}
+            <span className="font-semibold">{periodoActivo}</span>, ya cerrado. El
+            expediente es de solo lectura: no se pueden agregar entradas ni
+            documentos.
+            {periodoVigente && (
+              <>
+                {" "}
+                <button
+                  onClick={() => setPeriodoSeleccionado(null)}
+                  className="underline font-medium hover:text-[#78350F]"
+                >
+                  Volver al periodo vigente
+                </button>
+              </>
+            )}
+          </p>
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Left Column - Student Info */}
@@ -357,6 +421,7 @@ export default function StudentRecord() {
               canExport={canExport}
               exporting={exporting}
               onExport={handleExport}
+              soloLectura={soloLectura}
             />
           )}
 
@@ -366,6 +431,8 @@ export default function StudentRecord() {
             <DocumentosSection
               alumnoId={alumnoId}
               studentName={`${alumno.nombre} ${alumno.apellido}`}
+              periodo={periodoSeleccionado ?? undefined}
+              soloLectura={soloLectura}
             />
           )}
         </div>
