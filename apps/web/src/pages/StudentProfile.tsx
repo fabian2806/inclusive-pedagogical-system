@@ -11,7 +11,6 @@ import {
   FileText,
   GraduationCap,
   Ear,
-  MessageSquare,
   ShieldAlert,
   HandHelping,
   Star,
@@ -370,7 +369,6 @@ export default function StudentProfile() {
                         <p className="text-sm font-medium text-[#374151]">{doc.nombre} {doc.apellido}</p>
                         <p className="text-xs text-[#6B7280]">Docente</p>
                       </div>
-                      <Button variant="ghost" size="sm" className="text-[#3B82F6]"><MessageSquare size={16} /></Button>
                     </div>
                   ))}
                   {alumno.padres.map((padre) => (
@@ -382,7 +380,6 @@ export default function StudentProfile() {
                         <p className="text-sm font-medium text-[#374151]">{padre.nombre} {padre.apellido}</p>
                         <p className="text-xs text-[#6B7280]">Padre/Apoderado</p>
                       </div>
-                      <Button variant="ghost" size="sm" className="text-[#8B5CF6]"><MessageSquare size={16} /></Button>
                     </div>
                   ))}
                 </>
