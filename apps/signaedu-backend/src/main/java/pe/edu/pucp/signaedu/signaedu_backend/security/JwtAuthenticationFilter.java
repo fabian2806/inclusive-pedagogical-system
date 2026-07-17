@@ -39,7 +39,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (correo != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             UserDetails userDetails = userDetailsService.loadUserByUsername(correo);
 
-            if (jwtService.esTokenValido(token, userDetails)) {
+            // esTokenValido solo mira firma, sujeto y expiración: un token emitido
+            // antes de la baja sigue siendo válido. Sin comprobar isEnabled aquí, la
+            // desactivación no surtiría efecto hasta que el token expirara.
+            if (jwtService.esTokenValido(token, userDetails) && userDetails.isEnabled()) {
                 UsernamePasswordAuthenticationToken authToken =
                         new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
