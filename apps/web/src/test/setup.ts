@@ -7,6 +7,18 @@ window.ResizeObserver = class ResizeObserver {
   disconnect() {}
 }
 
+// Pointer Capture y scrollIntoView: jsdom no las implementa y Radix las usa
+// al abrir un Select. Sin esto, cualquier test que despliegue un Select
+// revienta con "target.hasPointerCapture is not a function".
+if (!Element.prototype.hasPointerCapture) {
+  Element.prototype.hasPointerCapture = () => false
+  Element.prototype.setPointerCapture = () => {}
+  Element.prototype.releasePointerCapture = () => {}
+}
+if (!Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = () => {}
+}
+
 // matchMedia es usado por hooks responsive (use-mobile) y componentes shadcn.
 // Mock minimo sin depender de `vi` para mantener setupFiles libre de imports
 // desde 'vitest' (vitest 4 marca esto como posible causa de "failed to find
