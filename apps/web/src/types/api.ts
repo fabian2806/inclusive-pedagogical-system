@@ -354,6 +354,8 @@ export interface PeriodoLectivoRequest {
 export interface AperturaPeriodoResponse {
   periodoLectivo: string
   expedientesCreados: number
+  /** Alumnos activos que ya tenían expediente en el periodo y se saltearon. */
+  expedientesOmitidos: number
 }
 
 export interface CierrePeriodoResponse {

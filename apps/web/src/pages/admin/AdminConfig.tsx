@@ -29,7 +29,7 @@ import { useNavigate } from "react-router-dom"
 import { useApiQuery } from "@/hooks/useApiQuery"
 import { configuracionService } from "@/lib/api/configuracionService"
 import { alumnosService } from "@/lib/api/alumnosService"
-import type { ErrorResponse } from "@/types/api"
+import type { AperturaPeriodoResponse, ErrorResponse } from "@/types/api"
 import { AxiosError } from "axios"
 
 export default function AdminConfig() {
@@ -66,7 +66,7 @@ export default function AdminConfig() {
   const [dialogCierre, setDialogCierre] = useState(false)
   const [loadingApertura, setLoadingApertura] = useState(false)
   const [loadingCierre, setLoadingCierre] = useState(false)
-  const [resultadoApertura, setResultadoApertura] = useState<number | null>(null)
+  const [resultadoApertura, setResultadoApertura] = useState<AperturaPeriodoResponse | null>(null)
   const [resultadoCierre, setResultadoCierre] = useState<number | null>(null)
 
   // Contacto del administrador
@@ -103,7 +103,12 @@ export default function AdminConfig() {
   }
 
   const handleGuardarPeriodo = async () => {
-    if (!periodoInput || periodoInput.length !== 4) return
+    // Antes esto era un `return` mudo: el admin clickeaba Guardar y no pasaba
+    // nada, sin error ni explicacion. Espeja el @Pattern del backend.
+    if (!/^\d{4}$/.test(periodoInput)) {
+      setErrorMessage("El periodo lectivo debe ser un año de 4 dígitos.")
+      return
+    }
     setLoadingSave(true)
     setErrorMessage(null)
     try {
@@ -142,7 +147,7 @@ export default function AdminConfig() {
     setErrorMessage(null)
     try {
       const resultado = await configuracionService.aperturarPeriodo()
-      setResultadoApertura(resultado.expedientesCreados)
+      setResultadoApertura(resultado)
       refetchPeriodo()
       setDialogApertura(false)
     } catch (err) {
@@ -202,9 +207,23 @@ export default function AdminConfig() {
       {resultadoApertura !== null && (
         <div className="flex items-start gap-2 p-3 rounded-lg bg-[#ECFDF5] border border-[#A7F3D0]">
           <CheckCircle size={15} className="text-[#059669] mt-0.5 shrink-0" />
-          <p className="text-xs text-[#065F46]">
-            Periodo aperturado. Se crearon <span className="font-semibold">{resultadoApertura}</span> expedientes.
-          </p>
+          <div className="text-xs text-[#065F46]">
+            <p>
+              Periodo aperturado. Se crearon{" "}
+              <span className="font-semibold">{resultadoApertura.expedientesCreados}</span>{" "}
+              expedientes.
+            </p>
+            {/* El salteo por idempotencia era silencioso: el modal prometia N y
+                el banner reportaba M sin explicar la diferencia. */}
+            {resultadoApertura.expedientesOmitidos > 0 && (
+              <p className="mt-1">
+                <span className="font-semibold">{resultadoApertura.expedientesOmitidos}</span>{" "}
+                {resultadoApertura.expedientesOmitidos === 1 ? "alumno ya tenía" : "alumnos ya tenían"}{" "}
+                expediente en el periodo {resultadoApertura.periodoLectivo} y{" "}
+                {resultadoApertura.expedientesOmitidos === 1 ? "fue omitido" : "fueron omitidos"}.
+              </p>
+            )}
+          </div>
         </div>
       )}
 
@@ -259,13 +278,19 @@ export default function AdminConfig() {
                   max="2099"
                   value={periodoInput}
                   onChange={(e) => setPeriodoInput(e.target.value)}
-                  className="w-32 border-[#E5E7EB] text-[#1E3A5F] font-semibold text-center text-lg"
+                  disabled={periodoAbierto}
+                  className="w-32 border-[#E5E7EB] text-[#1E3A5F] font-semibold text-center text-lg disabled:opacity-60"
                 />
                 <Button
                   onClick={handleGuardarPeriodo}
                   variant="outline"
                   className="gap-2 border-[#E5E7EB] text-[#374151] hover:bg-[#F3F4F6]"
-                  disabled={loadingSave}
+                  disabled={loadingSave || periodoAbierto}
+                  title={
+                    periodoAbierto
+                      ? `Cierra el periodo ${periodoVigente} antes de cambiar de año`
+                      : "Guardar el periodo lectivo vigente"
+                  }
                 >
                   <Save size={15} />
                   {loadingSave ? "Guardando..." : "Guardar"}
@@ -277,10 +302,22 @@ export default function AdminConfig() {
                   </span>
                 )}
               </div>
-              <p className="text-xs text-[#9CA3AF]">
-                Periodo actual en el sistema:{" "}
-                <span className="font-semibold text-[#1E3A5F]">{periodoVigente}</span>
-              </p>
+              {/* Guarda del orden cerrar → cambiar → aperturar. Mover el periodo
+                  vigente con expedientes activos los deja fuera del alcance del
+                  cierre para siempre, asi que el paso se bloquea hasta cerrar. */}
+              {periodoAbierto ? (
+                <p className="text-xs text-[#92400E]">
+                  Cierra el periodo{" "}
+                  <span className="font-semibold">{periodoVigente}</span> antes de cambiar
+                  de año, o sus {expedientesActivos} expedientes activos quedarán sin poder
+                  cerrarse.
+                </p>
+              ) : (
+                <p className="text-xs text-[#9CA3AF]">
+                  Periodo actual en el sistema:{" "}
+                  <span className="font-semibold text-[#1E3A5F]">{periodoVigente}</span>
+                </p>
+              )}
             </div>
           </div>
 
