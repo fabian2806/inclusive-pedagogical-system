@@ -27,6 +27,8 @@ interface Props {
   startReply: (id: string) => void
   cancelReply: () => void
   onReply: (id: string) => void
+  /** Expediente de un periodo cerrado: se lee pero no se responde. */
+  soloLectura?: boolean
   submitting: boolean
 }
 
@@ -120,6 +122,7 @@ export function BitacoraEntryCard({
   startReply,
   cancelReply,
   onReply,
+  soloLectura = false,
   submitting,
 }: Props) {
   const typeStyle = getEntryTypeColor(entry.type)
@@ -268,7 +271,7 @@ export function BitacoraEntryCard({
               </div>
             )}
 
-            {!isReplying ? (
+            {soloLectura ? null : !isReplying ? (
               <Button
                 variant="ghost"
                 size="sm"

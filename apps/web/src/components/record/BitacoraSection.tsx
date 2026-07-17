@@ -45,6 +45,11 @@ interface Props {
   canExport: boolean
   exporting: boolean
   onExport: () => void
+  /**
+   * Expediente de un periodo cerrado: se consulta pero no se escribe. Oculta
+   * el formulario, las respuestas y el export (que hoy solo cubre el vigente).
+   */
+  soloLectura?: boolean
 }
 
 export function BitacoraSection({
@@ -72,6 +77,7 @@ export function BitacoraSection({
   canExport,
   exporting,
   onExport,
+  soloLectura = false,
 }: Props) {
   return (
     <Card className="border-[#E5E7EB]">
@@ -98,7 +104,7 @@ export function BitacoraSection({
                 </button>
               ))}
             </div>
-            {canExport && (
+            {canExport && !soloLectura && (
               <Button
                 variant="outline"
                 size="sm"
@@ -133,15 +139,17 @@ export function BitacoraSection({
           </div>
         )}
 
-        <BitacoraEntryForm
-          tiposVisibles={tiposVisibles}
-          entryForm={entryForm}
-          setEntryForm={setEntryForm}
-          selectedType={selectedType}
-          indicadoresActivos={indicadoresActivos}
-          submitting={submitting}
-          onPublish={onPublish}
-        />
+        {!soloLectura && (
+          <BitacoraEntryForm
+            tiposVisibles={tiposVisibles}
+            entryForm={entryForm}
+            setEntryForm={setEntryForm}
+            selectedType={selectedType}
+            indicadoresActivos={indicadoresActivos}
+            submitting={submitting}
+            onPublish={onPublish}
+          />
+        )}
 
         {/* Entries Timeline */}
         <div className="space-y-4">
@@ -158,6 +166,7 @@ export function BitacoraSection({
               cancelReply={cancelReply}
               onReply={onReply}
               submitting={submitting}
+              soloLectura={soloLectura}
             />
           ))}
 
@@ -168,6 +177,7 @@ export function BitacoraSection({
               tiposVisibles={tiposVisibles}
               onTipoClick={(tipoId) => setEntryForm((f) => ({ ...f, tipo: tipoId }))}
               onResetFilter={() => setActiveFilter("all")}
+              soloLectura={soloLectura}
             />
           )}
         </div>

@@ -39,6 +39,7 @@ interface Overrides {
   canExport?: boolean
   exporting?: boolean
   onExport?: () => void
+  soloLectura?: boolean
 }
 
 function baseProps(overrides: Overrides = {}) {
@@ -68,6 +69,7 @@ function baseProps(overrides: Overrides = {}) {
     canExport: overrides.canExport ?? true,
     exporting: overrides.exporting ?? false,
     onExport: overrides.onExport ?? vi.fn(),
+    soloLectura: overrides.soloLectura ?? false,
   }
 }
 
@@ -107,5 +109,42 @@ describe('BitacoraSection — boton Exportar CSV', () => {
     const btn = screen.getByRole('button', { name: /exportando/i })
     expect(btn).toBeInTheDocument()
     expect(btn).toBeDisabled()
+  })
+})
+
+describe('BitacoraSection — periodo cerrado (solo lectura)', () => {
+  it('oculta el formulario de nueva entrada', () => {
+    const { rerender } = render(<BitacoraSection {...baseProps()} />)
+    expect(screen.getByRole('button', { name: /publicar entrada/i })).toBeInTheDocument()
+
+    rerender(<BitacoraSection {...baseProps({ soloLectura: true })} />)
+    expect(screen.queryByRole('button', { name: /publicar entrada/i })).not.toBeInTheDocument()
+  })
+
+  it('oculta el boton Responder de las entradas', () => {
+    const { rerender } = render(<BitacoraSection {...baseProps()} />)
+    expect(screen.getByRole('button', { name: /responder/i })).toBeInTheDocument()
+
+    rerender(<BitacoraSection {...baseProps({ soloLectura: true })} />)
+    expect(screen.queryByRole('button', { name: /responder/i })).not.toBeInTheDocument()
+  })
+
+  // El export hoy solo cubre el periodo vigente: mostrarlo en un periodo
+  // historico descargaria el CSV equivocado sin avisar.
+  it('oculta Exportar CSV aunque el usuario tenga el permiso', () => {
+    render(<BitacoraSection {...baseProps({ canExport: true, soloLectura: true })} />)
+    expect(screen.queryByRole('button', { name: /exportar csv/i })).not.toBeInTheDocument()
+  })
+
+  it('sigue mostrando las entradas del periodo consultado', () => {
+    render(<BitacoraSection {...baseProps({ soloLectura: true })} />)
+    expect(screen.getByText('Avance lectura')).toBeInTheDocument()
+  })
+
+  it('con periodo vacio no invita a escribir la primera entrada', () => {
+    render(<BitacoraSection {...baseProps({ entries: [], soloLectura: true })} />)
+
+    expect(screen.getByText(/sin entradas en este periodo/i)).toBeInTheDocument()
+    expect(screen.queryByText(/publica la primera/i)).not.toBeInTheDocument()
   })
 })

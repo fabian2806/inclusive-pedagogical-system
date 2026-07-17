@@ -7,6 +7,8 @@ interface Props {
   tiposVisibles: EntryTypeConfig[]
   onTipoClick: (tipoId: string) => void
   onResetFilter: () => void
+  /** Periodo cerrado: no hay formulario, asi que no invitamos a escribir. */
+  soloLectura?: boolean
 }
 
 export function BitacoraEmptyState({
@@ -15,7 +17,26 @@ export function BitacoraEmptyState({
   tiposVisibles,
   onTipoClick,
   onResetFilter,
+  soloLectura = false,
 }: Props) {
+  // En un periodo cerrado el vacio es un hecho consumado, no una invitacion:
+  // ese año simplemente no se registro nada y ya no se puede registrar.
+  if (totalEntries === 0 && soloLectura) {
+    return (
+      <div className="flex flex-col items-center py-16 px-8 text-center">
+        <div className="w-20 h-20 rounded-2xl bg-[#F9FAFB] border-2 border-dashed border-[#E5E7EB] flex items-center justify-center mb-5">
+          <FileText size={32} className="text-[#D1D5DB]" />
+        </div>
+        <h3 className="text-base font-semibold text-[#1E3A5F] mb-2">
+          Sin entradas en este periodo
+        </h3>
+        <p className="text-sm text-[#6B7280] leading-relaxed max-w-xs">
+          No se registraron entradas para {alumnoNombre} en el periodo consultado.
+        </p>
+      </div>
+    )
+  }
+
   if (totalEntries === 0) {
     return (
       <div className="flex flex-col items-center py-16 px-8 text-center">

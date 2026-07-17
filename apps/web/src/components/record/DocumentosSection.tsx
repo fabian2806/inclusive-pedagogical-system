@@ -29,6 +29,10 @@ import type {
 interface Props {
   alumnoId: number
   studentName: string
+  /** Periodo a consultar. Omitirlo consulta el expediente vigente. */
+  periodo?: string
+  /** Expediente de un periodo cerrado: se consulta pero no se sube nada. */
+  soloLectura?: boolean
 }
 
 interface GrupoDocumento {
@@ -100,10 +104,15 @@ function formatTamano(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
-export function DocumentosSection({ alumnoId, studentName }: Props) {
+export function DocumentosSection({
+  alumnoId,
+  studentName,
+  periodo,
+  soloLectura = false,
+}: Props) {
   const fetchDocumentos = useCallback(
-    () => documentosExpedienteService.listar(alumnoId),
-    [alumnoId],
+    () => documentosExpedienteService.listar(alumnoId, periodo),
+    [alumnoId, periodo],
   )
   const fetchTipos = useCallback(() => tiposDocumentoService.listarCatalogo(), [])
 
@@ -207,17 +216,19 @@ export function DocumentosSection({ alumnoId, studentName }: Props) {
               <FolderOpen size={20} className="text-[#3B82F6]" />
               Documentos de Seguimiento
             </CardTitle>
-            <Button
-              className="gap-2 bg-[#1E3A5F] hover:bg-[#2D4A6F] text-white"
-              size="sm"
-              onClick={() => {
-                setUploadError(null)
-                setShowModal(true)
-              }}
-            >
-              <Upload size={14} />
-              Subir documento
-            </Button>
+            {!soloLectura && (
+              <Button
+                className="gap-2 bg-[#1E3A5F] hover:bg-[#2D4A6F] text-white"
+                size="sm"
+                onClick={() => {
+                  setUploadError(null)
+                  setShowModal(true)
+                }}
+              >
+                <Upload size={14} />
+                Subir documento
+              </Button>
+            )}
           </div>
           <p className="text-sm text-[#6B7280] mt-1">
             Documentos oficiales del expediente con control de versiones
