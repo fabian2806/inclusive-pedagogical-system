@@ -140,8 +140,17 @@ export function DocumentosSection({
 
   const totalVigentes = docs.filter(d => d.estado === "VIGENTE").length
   const totalDocs = docs.length
-  const totalObligatorios = tiposLista.filter(t => t.esObligatorio).length
   const totalConVersiones = grupos.filter(g => g.historial.length > 1).length
+
+  // Obligatorios cubiertos por ESTE expediente, no el catálogo global: la misma
+  // definición que usa el panel "Documentos obligatorios" de abajo.
+  const tiposObligatorios = tiposLista.filter(t => t.esObligatorio)
+  const cubreObligatorio = (tipoId: number) =>
+    docs.some(d => d.tipoDocumento.id === tipoId && d.estado === "VIGENTE")
+  const obligatoriosCubiertos = tiposObligatorios.filter(t => cubreObligatorio(t.id)).length
+  const totalObligatorios = tiposObligatorios.length
+  const obligatoriosCompletos =
+    totalObligatorios > 0 && obligatoriosCubiertos === totalObligatorios
 
   const handleSubmit = async (payload: UploadDocumentPayload) => {
     setUploading(true)
@@ -252,9 +261,27 @@ export function DocumentosSection({
               <p className="text-2xl font-bold text-[#1E3A5F]">{totalDocs}</p>
               <p className="text-xs text-[#6B7280]">Total</p>
             </div>
-            <div className="p-3 rounded-lg bg-[#ECFDF5] border border-[#A7F3D0] text-center">
-              <p className="text-2xl font-bold text-[#059669]">{totalObligatorios}</p>
-              <p className="text-xs text-[#059669]">Obligatorios</p>
+            <div
+              className={`p-3 rounded-lg border text-center ${
+                obligatoriosCompletos
+                  ? "bg-[#ECFDF5] border-[#A7F3D0]"
+                  : "bg-[#FEF3C7] border-[#FDE68A]"
+              }`}
+            >
+              <p
+                className={`text-2xl font-bold ${
+                  obligatoriosCompletos ? "text-[#059669]" : "text-[#D97706]"
+                }`}
+              >
+                {obligatoriosCubiertos}/{totalObligatorios}
+              </p>
+              <p
+                className={`text-xs ${
+                  obligatoriosCompletos ? "text-[#059669]" : "text-[#D97706]"
+                }`}
+              >
+                Obligatorios
+              </p>
             </div>
             <div className="p-3 rounded-lg bg-[#EEF2FF] border border-[#C7D2FE] text-center">
               <p className="text-2xl font-bold text-[#4F46E5]">{totalConVersiones}</p>
@@ -421,39 +448,35 @@ export function DocumentosSection({
           </div>
 
           {/* Required documents status */}
-          {tiposLista.some(t => t.esObligatorio) && (
+          {totalObligatorios > 0 && (
             <div className="mt-6 p-4 rounded-lg bg-[#F9FAFB] border border-[#E5E7EB]">
               <p className="text-sm font-medium text-[#1E3A5F] mb-3 flex items-center gap-2">
                 <AlertCircle size={16} className="text-[#F59E0B]" />
                 Documentos obligatorios
               </p>
               <div className="grid grid-cols-3 gap-3">
-                {tiposLista
-                  .filter(t => t.esObligatorio)
-                  .map(tipo => {
-                    const hasVigente = docs.some(
-                      d => d.tipoDocumento.id === tipo.id && d.estado === "VIGENTE",
-                    )
-                    return (
-                      <div
-                        key={tipo.id}
-                        className={`flex items-center gap-2 p-2 rounded-lg ${
-                          hasVigente ? "bg-[#ECFDF5]" : "bg-[#FEF3C7]"
-                        }`}
+                {tiposObligatorios.map(tipo => {
+                  const hasVigente = cubreObligatorio(tipo.id)
+                  return (
+                    <div
+                      key={tipo.id}
+                      className={`flex items-center gap-2 p-2 rounded-lg ${
+                        hasVigente ? "bg-[#ECFDF5]" : "bg-[#FEF3C7]"
+                      }`}
+                    >
+                      {hasVigente ? (
+                        <CheckCircle size={14} className="text-[#059669]" />
+                      ) : (
+                        <AlertCircle size={14} className="text-[#D97706]" />
+                      )}
+                      <span
+                        className={`text-xs ${hasVigente ? "text-[#059669]" : "text-[#D97706]"}`}
                       >
-                        {hasVigente ? (
-                          <CheckCircle size={14} className="text-[#059669]" />
-                        ) : (
-                          <AlertCircle size={14} className="text-[#D97706]" />
-                        )}
-                        <span
-                          className={`text-xs ${hasVigente ? "text-[#059669]" : "text-[#D97706]"}`}
-                        >
-                          {tipo.nombre}
-                        </span>
-                      </div>
-                    )
-                  })}
+                        {tipo.nombre}
+                      </span>
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )}
