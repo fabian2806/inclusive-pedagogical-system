@@ -71,4 +71,54 @@ class CustomUserDetailsServiceTest {
         assertThat(authorityNames).hasSize(3);
         assertThat(authorityNames).contains("ROLE_DOCENTE", "ALUMNO_LEER", "PERFIL_DISCAPACIDAD_ESCRIBIR");
     }
+
+    @Test
+    void debeDeshabilitarUsuarioInactivo() {
+        // given: un docente que el admin desactivó (RNF02)
+        Usuario usuario = usuarioConEstado(EstadoUsuario.INACTIVO);
+
+        when(usuarioRepository.findByCorreo("maria@signaedu.pe"))
+                .thenReturn(Optional.of(usuario));
+
+        // when
+        UserDetails userDetails = customUserDetailsService.loadUserByUsername("maria@signaedu.pe");
+
+        // then: enabled=false hace que el DaoAuthenticationProvider lance
+        // DisabledException en el login y que el filtro JWT deje de autenticarlo,
+        // invalidando también los tokens que ya tuviera emitidos.
+        assertThat(userDetails.isEnabled()).isFalse();
+    }
+
+    @Test
+    void debeHabilitarUsuarioActivo() {
+        // given
+        Usuario usuario = usuarioConEstado(EstadoUsuario.ACTIVO);
+
+        when(usuarioRepository.findByCorreo("maria@signaedu.pe"))
+                .thenReturn(Optional.of(usuario));
+
+        // when
+        UserDetails userDetails = customUserDetailsService.loadUserByUsername("maria@signaedu.pe");
+
+        // then
+        assertThat(userDetails.isEnabled()).isTrue();
+    }
+
+    private Usuario usuarioConEstado(EstadoUsuario estado) {
+        Rol rolDocente = Rol.builder()
+                .id(2L)
+                .nombre(TipoRol.DOCENTE)
+                .permisos(new HashSet<>())
+                .build();
+
+        return Usuario.builder()
+                .id(1L)
+                .nombre("María")
+                .apellido("Torres")
+                .correo("maria@signaedu.pe")
+                .passwordHash("hashed")
+                .estado(estado)
+                .roles(new HashSet<>(Set.of(rolDocente)))
+                .build();
+    }
 }

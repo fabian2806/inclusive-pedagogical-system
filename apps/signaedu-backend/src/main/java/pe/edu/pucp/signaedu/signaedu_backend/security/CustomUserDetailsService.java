@@ -8,6 +8,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import pe.edu.pucp.signaedu.signaedu_backend.model.Usuario;
+import pe.edu.pucp.signaedu.signaedu_backend.model.enums.EstadoUsuario;
 import pe.edu.pucp.signaedu.signaedu_backend.repository.UsuarioRepository;
 
 import java.util.stream.Collectors;
@@ -33,6 +34,18 @@ public class CustomUserDetailsService implements UserDetailsService {
                 .map(permiso -> new SimpleGrantedAuthority(permiso.getNombre()))
                 .forEach(authorities::add);
 
-        return new User(usuario.getCorreo(), usuario.getPasswordHash(), authorities);
+        // Un usuario INACTIVO queda deshabilitado: el DaoAuthenticationProvider lo
+        // rechaza en el login y el JwtAuthenticationFilter deja de autenticarlo, con
+        // lo que sus tokens vigentes pierden efecto en el siguiente request.
+        boolean habilitado = usuario.getEstado() == EstadoUsuario.ACTIVO;
+
+        return new User(
+                usuario.getCorreo(),
+                usuario.getPasswordHash(),
+                habilitado,
+                true,
+                true,
+                true,
+                authorities);
     }
 }
